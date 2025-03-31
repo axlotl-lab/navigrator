@@ -135,6 +135,38 @@ export class HostsManager {
   }
 
   /**
+   * "Adopta" un dominio existente marcándolo como creado por nuestra aplicación
+   */
+  public async adoptHost(domain: string, ip: string = '127.0.0.1'): Promise<boolean> {
+    return await this.markHostAsOurs(domain, ip);
+  }
+
+  /**
+   * Importa todos los dominios locales existentes y los marca como nuestros
+   */
+  public async importAllLocalHosts(): Promise<{ success: boolean, count: number }> {
+    try {
+      const hosts = await this.readLocalHosts();
+      const hostsToAdopt = hosts.filter(host => !host.isCreatedByUs);
+
+      let adoptedCount = 0;
+
+      for (const host of hostsToAdopt) {
+        const success = await this.adoptHost(host.domain, host.ip);
+        if (success) adoptedCount++;
+      }
+
+      return {
+        success: adoptedCount > 0,
+        count: adoptedCount
+      };
+    } catch (error: any) {
+      console.error('Error importing all hosts:', error);
+      throw new Error(`Failed to import hosts: ${error?.message}`);
+    }
+  }
+
+  /**
    * Marca un host existente como creado por nuestra aplicación
    */
   private async markHostAsOurs(domain: string, ip: string): Promise<boolean> {

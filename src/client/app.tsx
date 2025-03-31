@@ -42,6 +42,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<'domains' | 'certificates'>('domains');
+  const [confirmImport, setConfirmImport] = useState(false);
 
   // Cargar datos al iniciar
   useEffect(() => {
@@ -140,6 +141,59 @@ function App() {
       setNewDomain('');
     } catch (error: any) {
       showNotification(`Error adding domain: ${error?.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Adoptar un dominio existente
+  const adoptDomain = async (domain: string, ip: string) => {
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/hosts/${domain}/adopt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ip })
+      });
+
+      if (!response.ok) throw new Error('Failed to adopt host');
+
+      // Actualizar datos
+      await fetchData();
+
+      // Mostrar notificación
+      showNotification(`Domain ${domain} adopted successfully`, 'success');
+    } catch (error: any) {
+      showNotification(`Error adopting domain: ${error?.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Importar todos los dominios locales
+  const importAllDomains = async () => {
+    setLoading(true);
+    setConfirmImport(false);
+
+    try {
+      const response = await fetch('/api/hosts/import-all', {
+        method: 'POST'
+      });
+
+      if (!response.ok) throw new Error('Failed to import hosts');
+
+      const data = await response.json();
+
+      // Actualizar datos
+      await fetchData();
+
+      // Mostrar notificación
+      showNotification(data.message, 'success');
+    } catch (error: any) {
+      showNotification(`Error importing domains: ${error?.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -254,6 +308,29 @@ function App() {
         </div>
       )}
 
+      {confirmImport && (
+        <div className="confirmation-dialog">
+          <div className="confirmation-content">
+            <h3>Import All Local Domains</h3>
+            <p>This will mark all local domains as managed by Navigrator. Are you sure?</p>
+            <div className="confirmation-actions">
+              <button
+                className="button danger"
+                onClick={() => setConfirmImport(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="button success"
+                onClick={() => importAllDomains()}
+              >
+                Confirm Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="tabs">
         <button
           className={activeTab === 'domains' ? 'active' : ''}
@@ -292,7 +369,17 @@ function App() {
             </form>
 
             <div className="domains-list">
-              <h2>Your Local Domains</h2>
+              <div className="domains-header">
+                <h2>Your Local Domains</h2>
+                <button
+                  className="button secondary import-button"
+                  onClick={() => setConfirmImport(true)}
+                  disabled={loading}
+                  title="Import all local domains to manage them with Navigrator"
+                >
+                  Import All Domains
+                </button>
+              </div>
 
               {domains.length === 0 ? (
                 <p className="no-data">No domains configured yet</p>
@@ -301,7 +388,6 @@ function App() {
                   <thead>
                     <tr>
                       <th>Domain</th>
-                      <th>Status</th>
                       <th>Certificate</th>
                       <th>State</th>
                       <th>Actions</th>
@@ -309,13 +395,11 @@ function App() {
                   </thead>
                   <tbody>
                     {domains.map((domain) => (
-                      <tr key={domain.domain} className={domain.isDisabled ? 'disabled-row' : ''}>
+                      <tr
+                        key={domain.domain}
+                        className={domain.isDisabled ? 'disabled-row' : ''}
+                      >
                         <td>{domain.domain}</td>
-                        <td>
-                          <span className={`status ${statuses[domain.domain]?.hostConfigured ? 'valid' : 'invalid'} `}>
-                            {statuses[domain.domain]?.hostConfigured ? 'Configured' : 'Not Configured'}
-                          </span>
-                        </td>
                         <td>
                           <span className={`status ${statuses[domain.domain]?.certificateValid ? 'valid' : 'invalid'} `}>
                             {statuses[domain.domain]?.certificateValid ? 'Valid' : 'Invalid/Missing'}
@@ -327,7 +411,8 @@ function App() {
                           </span>
                         </td>
                         <td className="actions-cell">
-                          {domain.isCreatedByUs && (
+                          {domain.isCreatedByUs ? (
+                            // Acciones para dominios gestionados
                             <>
                               <button
                                 onClick={() => toggleDomainState(domain.domain, !domain.isDisabled)}
@@ -354,6 +439,16 @@ function App() {
                                 Remove
                               </button>
                             </>
+                          ) : (
+                            // Acción para adoptar dominios no gestionados
+                            <button
+                              onClick={() => adoptDomain(domain.domain, domain.ip)}
+                              className="button primary adopt-button"
+                              disabled={loading}
+                              title="Start managing this domain with Navigrator"
+                            >
+                              Adopt
+                            </button>
                           )}
                         </td>
                       </tr>

@@ -33484,7 +33484,7 @@ body {
   border-radius: 5px;
   z-index: 101;
   animation: fadeIn 0.3s ease-in-out;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .notification.success {
@@ -33495,6 +33495,45 @@ body {
 .notification.error {
   background-color: var(--danger-color);
   color: white;
+}
+
+/* Modal de confirmación */
+.confirmation-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+}
+
+.confirmation-content {
+  background-color: white;
+  border-radius: 5px;
+  padding: 20px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.confirmation-content h3 {
+  margin-bottom: 15px;
+  color: var(--dark-color);
+}
+
+.confirmation-content p {
+  margin-bottom: 20px;
+  color: var(--secondary-color);
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 @keyframes fadeIn {
@@ -33636,6 +33675,15 @@ button.warning:hover {
   background-color: #e0a800;
 }
 
+.adopt-button {
+  background-color: #9c27b0;
+  /* Color diferenciado para el botón de adoptar */
+}
+
+.adopt-button:hover {
+  background-color: #7b1fa2;
+}
+
 .domains-list,
 .certificates-list {
   background-color: white;
@@ -33644,10 +33692,21 @@ button.warning:hover {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.domains-list h2,
-.certificates-list h2 {
+.domains-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 15px;
+}
+
+.domains-header h2 {
   font-size: 1.2rem;
+  margin: 0;
+}
+
+.import-button {
+  font-size: 0.9rem;
+  padding: 8px 12px;
 }
 
 table {
@@ -33744,12 +33803,22 @@ tr.disabled-row:hover {
   .actions-cell {
     flex-direction: column;
   }
-  
+
   .actions-cell .button {
     margin-bottom: 5px;
     width: 100%;
   }
-}`, "",{"version":3,"sources":["webpack://./src/client/styles.css"],"names":[],"mappings":"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","sourcesContent":[":root {\r\n  --primary-color: #4a6cf7;\r\n  --secondary-color: #6c757d;\r\n  --danger-color: #dc3545;\r\n  --success-color: #28a745;\r\n  --warning-color: #ffc107;\r\n  --light-color: #f8f9fa;\r\n  --dark-color: #343a40;\r\n  --border-color: #e9ecef;\r\n  --background-color: #f8f9fa;\r\n}\r\n\r\n* {\r\n  box-sizing: border-box;\r\n  margin: 0;\r\n  padding: 0;\r\n}\r\n\r\nbody {\r\n  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,\r\n    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;\r\n  line-height: 1.6;\r\n  color: var(--dark-color);\r\n  background-color: var(--background-color);\r\n}\r\n\r\n.app-container {\r\n  max-width: 1200px;\r\n  margin: 0 auto;\r\n  padding: 20px;\r\n}\r\n\r\n.app-header {\r\n  text-align: center;\r\n  margin-bottom: 30px;\r\n  padding-bottom: 15px;\r\n  border-bottom: 1px solid var(--border-color);\r\n}\r\n\r\n.app-header h1 {\r\n  color: var(--primary-color);\r\n  margin-bottom: 5px;\r\n}\r\n\r\n.subtitle {\r\n  font-size: 1.2rem;\r\n  color: var(--secondary-color);\r\n}\r\n\r\n.loading {\r\n  display: flex;\r\n  justify-content: center;\r\n  align-items: center;\r\n  position: fixed;\r\n  top: 0;\r\n  left: 0;\r\n  right: 0;\r\n  bottom: 0;\r\n  background-color: rgba(255, 255, 255, 0.7);\r\n  z-index: 100;\r\n  font-size: 1.5rem;\r\n}\r\n\r\n.error-banner {\r\n  background-color: #f8d7da;\r\n  color: #721c24;\r\n  padding: 15px;\r\n  margin-bottom: 20px;\r\n  border-radius: 5px;\r\n  display: flex;\r\n  justify-content: space-between;\r\n  align-items: center;\r\n}\r\n\r\n.error-banner button {\r\n  background-color: #721c24;\r\n  color: white;\r\n  border: none;\r\n  padding: 5px 10px;\r\n  border-radius: 3px;\r\n  cursor: pointer;\r\n}\r\n\r\n.notification {\r\n  position: fixed;\r\n  top: 20px;\r\n  right: 20px;\r\n  padding: 15px 20px;\r\n  border-radius: 5px;\r\n  z-index: 101;\r\n  animation: fadeIn 0.3s ease-in-out;\r\n  box-shadow: 0 2px 10px rgba(0,0,0,0.1);\r\n}\r\n\r\n.notification.success {\r\n  background-color: var(--success-color);\r\n  color: white;\r\n}\r\n\r\n.notification.error {\r\n  background-color: var(--danger-color);\r\n  color: white;\r\n}\r\n\r\n@keyframes fadeIn {\r\n  from {\r\n    opacity: 0;\r\n    transform: translateY(-20px);\r\n  }\r\n\r\n  to {\r\n    opacity: 1;\r\n    transform: translateY(0);\r\n  }\r\n}\r\n\r\n/* Mejoras para los tabs */\r\n.tabs {\r\n  display: flex;\r\n  margin-bottom: 20px;\r\n  border-bottom: 1px solid var(--border-color);\r\n}\r\n\r\n.tabs button {\r\n  background: none;\r\n  border: none;\r\n  padding: 10px 20px;\r\n  font-size: 1rem;\r\n  cursor: pointer;\r\n  border-bottom: 3px solid transparent;\r\n  margin-right: 10px;\r\n  color: var(--secondary-color);\r\n  transition: all 0.2s ease;\r\n}\r\n\r\n.tabs button:hover {\r\n  background-color: rgba(74, 108, 247, 0.05);\r\n  color: var(--primary-color);\r\n}\r\n\r\n.tabs button.active {\r\n  border-bottom: 3px solid var(--primary-color);\r\n  color: var(--primary-color);\r\n  font-weight: bold;\r\n}\r\n\r\n.tab-content {\r\n  margin-top: 20px;\r\n}\r\n\r\n.add-domain-form {\r\n  background-color: white;\r\n  padding: 20px;\r\n  border-radius: 5px;\r\n  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\r\n  margin-bottom: 30px;\r\n}\r\n\r\n.add-domain-form h2 {\r\n  margin-bottom: 15px;\r\n  font-size: 1.2rem;\r\n}\r\n\r\n.form-row {\r\n  display: flex;\r\n  gap: 10px;\r\n  margin-bottom: 10px;\r\n}\r\n\r\n.form-row input {\r\n  flex-grow: 1;\r\n  padding: 10px;\r\n  border: 1px solid var(--border-color);\r\n  border-radius: 3px;\r\n  font-size: 1rem;\r\n}\r\n\r\n.form-row input:focus {\r\n  outline: none;\r\n  border-color: var(--primary-color);\r\n  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.2);\r\n}\r\n\r\n.help-text {\r\n  font-size: 0.9rem;\r\n  color: var(--secondary-color);\r\n  margin-top: 10px;\r\n}\r\n\r\nbutton {\r\n  background-color: var(--primary-color);\r\n  color: white;\r\n  border: none;\r\n  padding: 10px 15px;\r\n  border-radius: 3px;\r\n  cursor: pointer;\r\n  font-size: 1rem;\r\n  transition: background-color 0.2s;\r\n}\r\n\r\nbutton:hover {\r\n  background-color: #3a5ad9;\r\n}\r\n\r\nbutton:disabled {\r\n  background-color: var(--secondary-color);\r\n  cursor: not-allowed;\r\n  opacity: 0.7;\r\n}\r\n\r\nbutton.secondary {\r\n  background-color: var(--secondary-color);\r\n}\r\n\r\nbutton.secondary:hover {\r\n  background-color: #5a6268;\r\n}\r\n\r\nbutton.danger {\r\n  background-color: var(--danger-color);\r\n}\r\n\r\nbutton.danger:hover {\r\n  background-color: #c82333;\r\n}\r\n\r\nbutton.success {\r\n  background-color: var(--success-color);\r\n}\r\n\r\nbutton.success:hover {\r\n  background-color: #218838;\r\n}\r\n\r\nbutton.warning {\r\n  background-color: var(--warning-color);\r\n  color: #212529;\r\n}\r\n\r\nbutton.warning:hover {\r\n  background-color: #e0a800;\r\n}\r\n\r\n.domains-list,\r\n.certificates-list {\r\n  background-color: white;\r\n  padding: 20px;\r\n  border-radius: 5px;\r\n  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\r\n}\r\n\r\n.domains-list h2,\r\n.certificates-list h2 {\r\n  margin-bottom: 15px;\r\n  font-size: 1.2rem;\r\n}\r\n\r\ntable {\r\n  width: 100%;\r\n  border-collapse: collapse;\r\n  margin-top: 15px;\r\n}\r\n\r\nthead th {\r\n  text-align: left;\r\n  padding: 10px;\r\n  border-bottom: 2px solid var(--border-color);\r\n  color: var(--secondary-color);\r\n}\r\n\r\ntbody td {\r\n  padding: 12px 10px;\r\n  border-bottom: 1px solid var(--border-color);\r\n}\r\n\r\ntbody tr:hover {\r\n  background-color: rgba(0, 0, 0, 0.02);\r\n}\r\n\r\ntr.disabled-row {\r\n  background-color: rgba(108, 117, 125, 0.1);\r\n}\r\n\r\ntr.disabled-row:hover {\r\n  background-color: rgba(108, 117, 125, 0.15);\r\n}\r\n\r\n.status {\r\n  display: inline-block;\r\n  padding: 3px 10px;\r\n  border-radius: 12px;\r\n  font-size: 0.85rem;\r\n  font-weight: 500;\r\n}\r\n\r\n.status.valid {\r\n  background-color: rgba(40, 167, 69, 0.2);\r\n  color: #1a7431;\r\n}\r\n\r\n.status.invalid {\r\n  background-color: rgba(220, 53, 69, 0.2);\r\n  color: #a71d2a;\r\n}\r\n\r\n.status.warning {\r\n  background-color: rgba(255, 193, 7, 0.2);\r\n  color: #a07800;\r\n}\r\n\r\n.actions-cell {\r\n  display: flex;\r\n  gap: 5px;\r\n  flex-wrap: wrap;\r\n}\r\n\r\n.actions-cell .button {\r\n  padding: 5px 10px;\r\n  font-size: 0.85rem;\r\n  white-space: nowrap;\r\n}\r\n\r\n.no-data {\r\n  text-align: center;\r\n  padding: 20px;\r\n  color: var(--secondary-color);\r\n  font-style: italic;\r\n}\r\n\r\n@media (max-width: 768px) {\r\n  .form-row {\r\n    flex-direction: column;\r\n  }\r\n\r\n  .form-row button {\r\n    width: 100%;\r\n    margin-top: 10px;\r\n  }\r\n\r\n  table {\r\n    display: block;\r\n    overflow-x: auto;\r\n  }\r\n\r\n  .tabs button {\r\n    padding: 10px;\r\n  }\r\n\r\n  .actions-cell {\r\n    flex-direction: column;\r\n  }\r\n  \r\n  .actions-cell .button {\r\n    margin-bottom: 5px;\r\n    width: 100%;\r\n  }\r\n}"],"sourceRoot":""}]);
+
+  .domains-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .import-button {
+    width: 100%;
+  }
+}`, "",{"version":3,"sources":["webpack://./src/client/styles.css"],"names":[],"mappings":"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","sourcesContent":[":root {\r\n  --primary-color: #4a6cf7;\r\n  --secondary-color: #6c757d;\r\n  --danger-color: #dc3545;\r\n  --success-color: #28a745;\r\n  --warning-color: #ffc107;\r\n  --light-color: #f8f9fa;\r\n  --dark-color: #343a40;\r\n  --border-color: #e9ecef;\r\n  --background-color: #f8f9fa;\r\n}\r\n\r\n* {\r\n  box-sizing: border-box;\r\n  margin: 0;\r\n  padding: 0;\r\n}\r\n\r\nbody {\r\n  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,\r\n    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;\r\n  line-height: 1.6;\r\n  color: var(--dark-color);\r\n  background-color: var(--background-color);\r\n}\r\n\r\n.app-container {\r\n  max-width: 1200px;\r\n  margin: 0 auto;\r\n  padding: 20px;\r\n}\r\n\r\n.app-header {\r\n  text-align: center;\r\n  margin-bottom: 30px;\r\n  padding-bottom: 15px;\r\n  border-bottom: 1px solid var(--border-color);\r\n}\r\n\r\n.app-header h1 {\r\n  color: var(--primary-color);\r\n  margin-bottom: 5px;\r\n}\r\n\r\n.subtitle {\r\n  font-size: 1.2rem;\r\n  color: var(--secondary-color);\r\n}\r\n\r\n.loading {\r\n  display: flex;\r\n  justify-content: center;\r\n  align-items: center;\r\n  position: fixed;\r\n  top: 0;\r\n  left: 0;\r\n  right: 0;\r\n  bottom: 0;\r\n  background-color: rgba(255, 255, 255, 0.7);\r\n  z-index: 100;\r\n  font-size: 1.5rem;\r\n}\r\n\r\n.error-banner {\r\n  background-color: #f8d7da;\r\n  color: #721c24;\r\n  padding: 15px;\r\n  margin-bottom: 20px;\r\n  border-radius: 5px;\r\n  display: flex;\r\n  justify-content: space-between;\r\n  align-items: center;\r\n}\r\n\r\n.error-banner button {\r\n  background-color: #721c24;\r\n  color: white;\r\n  border: none;\r\n  padding: 5px 10px;\r\n  border-radius: 3px;\r\n  cursor: pointer;\r\n}\r\n\r\n.notification {\r\n  position: fixed;\r\n  top: 20px;\r\n  right: 20px;\r\n  padding: 15px 20px;\r\n  border-radius: 5px;\r\n  z-index: 101;\r\n  animation: fadeIn 0.3s ease-in-out;\r\n  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);\r\n}\r\n\r\n.notification.success {\r\n  background-color: var(--success-color);\r\n  color: white;\r\n}\r\n\r\n.notification.error {\r\n  background-color: var(--danger-color);\r\n  color: white;\r\n}\r\n\r\n/* Modal de confirmación */\r\n.confirmation-dialog {\r\n  position: fixed;\r\n  top: 0;\r\n  left: 0;\r\n  right: 0;\r\n  bottom: 0;\r\n  background-color: rgba(0, 0, 0, 0.5);\r\n  display: flex;\r\n  justify-content: center;\r\n  align-items: center;\r\n  z-index: 200;\r\n}\r\n\r\n.confirmation-content {\r\n  background-color: white;\r\n  border-radius: 5px;\r\n  padding: 20px;\r\n  width: 90%;\r\n  max-width: 500px;\r\n  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);\r\n}\r\n\r\n.confirmation-content h3 {\r\n  margin-bottom: 15px;\r\n  color: var(--dark-color);\r\n}\r\n\r\n.confirmation-content p {\r\n  margin-bottom: 20px;\r\n  color: var(--secondary-color);\r\n}\r\n\r\n.confirmation-actions {\r\n  display: flex;\r\n  justify-content: flex-end;\r\n  gap: 10px;\r\n}\r\n\r\n@keyframes fadeIn {\r\n  from {\r\n    opacity: 0;\r\n    transform: translateY(-20px);\r\n  }\r\n\r\n  to {\r\n    opacity: 1;\r\n    transform: translateY(0);\r\n  }\r\n}\r\n\r\n/* Mejoras para los tabs */\r\n.tabs {\r\n  display: flex;\r\n  margin-bottom: 20px;\r\n  border-bottom: 1px solid var(--border-color);\r\n}\r\n\r\n.tabs button {\r\n  background: none;\r\n  border: none;\r\n  padding: 10px 20px;\r\n  font-size: 1rem;\r\n  cursor: pointer;\r\n  border-bottom: 3px solid transparent;\r\n  margin-right: 10px;\r\n  color: var(--secondary-color);\r\n  transition: all 0.2s ease;\r\n}\r\n\r\n.tabs button:hover {\r\n  background-color: rgba(74, 108, 247, 0.05);\r\n  color: var(--primary-color);\r\n}\r\n\r\n.tabs button.active {\r\n  border-bottom: 3px solid var(--primary-color);\r\n  color: var(--primary-color);\r\n  font-weight: bold;\r\n}\r\n\r\n.tab-content {\r\n  margin-top: 20px;\r\n}\r\n\r\n.add-domain-form {\r\n  background-color: white;\r\n  padding: 20px;\r\n  border-radius: 5px;\r\n  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\r\n  margin-bottom: 30px;\r\n}\r\n\r\n.add-domain-form h2 {\r\n  margin-bottom: 15px;\r\n  font-size: 1.2rem;\r\n}\r\n\r\n.form-row {\r\n  display: flex;\r\n  gap: 10px;\r\n  margin-bottom: 10px;\r\n}\r\n\r\n.form-row input {\r\n  flex-grow: 1;\r\n  padding: 10px;\r\n  border: 1px solid var(--border-color);\r\n  border-radius: 3px;\r\n  font-size: 1rem;\r\n}\r\n\r\n.form-row input:focus {\r\n  outline: none;\r\n  border-color: var(--primary-color);\r\n  box-shadow: 0 0 0 2px rgba(74, 108, 247, 0.2);\r\n}\r\n\r\n.help-text {\r\n  font-size: 0.9rem;\r\n  color: var(--secondary-color);\r\n  margin-top: 10px;\r\n}\r\n\r\nbutton {\r\n  background-color: var(--primary-color);\r\n  color: white;\r\n  border: none;\r\n  padding: 10px 15px;\r\n  border-radius: 3px;\r\n  cursor: pointer;\r\n  font-size: 1rem;\r\n  transition: background-color 0.2s;\r\n}\r\n\r\nbutton:hover {\r\n  background-color: #3a5ad9;\r\n}\r\n\r\nbutton:disabled {\r\n  background-color: var(--secondary-color);\r\n  cursor: not-allowed;\r\n  opacity: 0.7;\r\n}\r\n\r\nbutton.secondary {\r\n  background-color: var(--secondary-color);\r\n}\r\n\r\nbutton.secondary:hover {\r\n  background-color: #5a6268;\r\n}\r\n\r\nbutton.danger {\r\n  background-color: var(--danger-color);\r\n}\r\n\r\nbutton.danger:hover {\r\n  background-color: #c82333;\r\n}\r\n\r\nbutton.success {\r\n  background-color: var(--success-color);\r\n}\r\n\r\nbutton.success:hover {\r\n  background-color: #218838;\r\n}\r\n\r\nbutton.warning {\r\n  background-color: var(--warning-color);\r\n  color: #212529;\r\n}\r\n\r\nbutton.warning:hover {\r\n  background-color: #e0a800;\r\n}\r\n\r\n.adopt-button {\r\n  background-color: #9c27b0;\r\n  /* Color diferenciado para el botón de adoptar */\r\n}\r\n\r\n.adopt-button:hover {\r\n  background-color: #7b1fa2;\r\n}\r\n\r\n.domains-list,\r\n.certificates-list {\r\n  background-color: white;\r\n  padding: 20px;\r\n  border-radius: 5px;\r\n  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\r\n}\r\n\r\n.domains-header {\r\n  display: flex;\r\n  justify-content: space-between;\r\n  align-items: center;\r\n  margin-bottom: 15px;\r\n}\r\n\r\n.domains-header h2 {\r\n  font-size: 1.2rem;\r\n  margin: 0;\r\n}\r\n\r\n.import-button {\r\n  font-size: 0.9rem;\r\n  padding: 8px 12px;\r\n}\r\n\r\ntable {\r\n  width: 100%;\r\n  border-collapse: collapse;\r\n  margin-top: 15px;\r\n}\r\n\r\nthead th {\r\n  text-align: left;\r\n  padding: 10px;\r\n  border-bottom: 2px solid var(--border-color);\r\n  color: var(--secondary-color);\r\n}\r\n\r\ntbody td {\r\n  padding: 12px 10px;\r\n  border-bottom: 1px solid var(--border-color);\r\n}\r\n\r\ntbody tr:hover {\r\n  background-color: rgba(0, 0, 0, 0.02);\r\n}\r\n\r\ntr.disabled-row {\r\n  background-color: rgba(108, 117, 125, 0.1);\r\n}\r\n\r\ntr.disabled-row:hover {\r\n  background-color: rgba(108, 117, 125, 0.15);\r\n}\r\n\r\n.status {\r\n  display: inline-block;\r\n  padding: 3px 10px;\r\n  border-radius: 12px;\r\n  font-size: 0.85rem;\r\n  font-weight: 500;\r\n}\r\n\r\n.status.valid {\r\n  background-color: rgba(40, 167, 69, 0.2);\r\n  color: #1a7431;\r\n}\r\n\r\n.status.invalid {\r\n  background-color: rgba(220, 53, 69, 0.2);\r\n  color: #a71d2a;\r\n}\r\n\r\n.status.warning {\r\n  background-color: rgba(255, 193, 7, 0.2);\r\n  color: #a07800;\r\n}\r\n\r\n.actions-cell {\r\n  display: flex;\r\n  gap: 5px;\r\n  flex-wrap: wrap;\r\n}\r\n\r\n.actions-cell .button {\r\n  padding: 5px 10px;\r\n  font-size: 0.85rem;\r\n  white-space: nowrap;\r\n}\r\n\r\n.no-data {\r\n  text-align: center;\r\n  padding: 20px;\r\n  color: var(--secondary-color);\r\n  font-style: italic;\r\n}\r\n\r\n@media (max-width: 768px) {\r\n  .form-row {\r\n    flex-direction: column;\r\n  }\r\n\r\n  .form-row button {\r\n    width: 100%;\r\n    margin-top: 10px;\r\n  }\r\n\r\n  table {\r\n    display: block;\r\n    overflow-x: auto;\r\n  }\r\n\r\n  .tabs button {\r\n    padding: 10px;\r\n  }\r\n\r\n  .actions-cell {\r\n    flex-direction: column;\r\n  }\r\n\r\n  .actions-cell .button {\r\n    margin-bottom: 5px;\r\n    width: 100%;\r\n  }\r\n\r\n  .domains-header {\r\n    flex-direction: column;\r\n    align-items: flex-start;\r\n    gap: 10px;\r\n  }\r\n\r\n  .import-button {\r\n    width: 100%;\r\n  }\r\n}"],"sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -34206,6 +34275,7 @@ function App() {
     const [error, setError] = (0, react_1.useState)(null);
     const [notification, setNotification] = (0, react_1.useState)(null);
     const [activeTab, setActiveTab] = (0, react_1.useState)('domains');
+    const [confirmImport, setConfirmImport] = (0, react_1.useState)(false);
     // Cargar datos al iniciar
     (0, react_1.useEffect)(() => {
         fetchData();
@@ -34288,6 +34358,54 @@ function App() {
         }
         catch (error) {
             showNotification(`Error adding domain: ${error === null || error === void 0 ? void 0 : error.message}`, 'error');
+        }
+        finally {
+            setLoading(false);
+        }
+    });
+    // Adoptar un dominio existente
+    const adoptDomain = (domain, ip) => __awaiter(this, void 0, void 0, function* () {
+        setLoading(true);
+        try {
+            const response = yield fetch(`/api/hosts/${domain}/adopt`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ip })
+            });
+            if (!response.ok)
+                throw new Error('Failed to adopt host');
+            // Actualizar datos
+            yield fetchData();
+            // Mostrar notificación
+            showNotification(`Domain ${domain} adopted successfully`, 'success');
+        }
+        catch (error) {
+            showNotification(`Error adopting domain: ${error === null || error === void 0 ? void 0 : error.message}`, 'error');
+        }
+        finally {
+            setLoading(false);
+        }
+    });
+    // Importar todos los dominios locales
+    const importAllDomains = () => __awaiter(this, void 0, void 0, function* () {
+        setLoading(true);
+        setConfirmImport(false);
+        try {
+            const response = yield fetch('/api/hosts/import-all', {
+                method: 'POST'
+            });
+            if (!response.ok)
+                throw new Error('Failed to import hosts');
+            const data = yield response.json();
+            // Actualizar datos
+            yield fetchData();
+            // Mostrar notificación
+            showNotification(data.message, 'success');
+        }
+        catch (error) {
+            showNotification(`Error importing domains: ${error === null || error === void 0 ? void 0 : error.message}`, 'error');
         }
         finally {
             setLoading(false);
@@ -34382,6 +34500,13 @@ function App() {
             react_1.default.createElement("p", null, error),
             react_1.default.createElement("button", { onClick: fetchData }, "Retry"))),
         notification && (react_1.default.createElement("div", { className: `notification ${notification.type} ` }, notification.message)),
+        confirmImport && (react_1.default.createElement("div", { className: "confirmation-dialog" },
+            react_1.default.createElement("div", { className: "confirmation-content" },
+                react_1.default.createElement("h3", null, "Import All Local Domains"),
+                react_1.default.createElement("p", null, "This will mark all local domains as managed by Navigrator. Are you sure?"),
+                react_1.default.createElement("div", { className: "confirmation-actions" },
+                    react_1.default.createElement("button", { className: "button danger", onClick: () => setConfirmImport(false) }, "Cancel"),
+                    react_1.default.createElement("button", { className: "button success", onClick: () => importAllDomains() }, "Confirm Import"))))),
         react_1.default.createElement("div", { className: "tabs" },
             react_1.default.createElement("button", { className: activeTab === 'domains' ? 'active' : '', onClick: () => setActiveTab('domains') }, "Domains"),
             react_1.default.createElement("button", { className: activeTab === 'certificates' ? 'active' : '', onClick: () => setActiveTab('certificates') }, "Certificates")),
@@ -34394,29 +34519,32 @@ function App() {
                         react_1.default.createElement("button", { type: "submit", disabled: loading || !newDomain }, "Add Domain")),
                     react_1.default.createElement("p", { className: "help-text" }, "All domains will point to 127.0.0.1 and include a local SSL certificate")),
                 react_1.default.createElement("div", { className: "domains-list" },
-                    react_1.default.createElement("h2", null, "Your Local Domains"),
+                    react_1.default.createElement("div", { className: "domains-header" },
+                        react_1.default.createElement("h2", null, "Your Local Domains"),
+                        react_1.default.createElement("button", { className: "button secondary import-button", onClick: () => setConfirmImport(true), disabled: loading, title: "Import all local domains to manage them with Navigrator" }, "Import All Domains")),
                     domains.length === 0 ? (react_1.default.createElement("p", { className: "no-data" }, "No domains configured yet")) : (react_1.default.createElement("table", null,
                         react_1.default.createElement("thead", null,
                             react_1.default.createElement("tr", null,
                                 react_1.default.createElement("th", null, "Domain"),
-                                react_1.default.createElement("th", null, "Status"),
                                 react_1.default.createElement("th", null, "Certificate"),
                                 react_1.default.createElement("th", null, "State"),
                                 react_1.default.createElement("th", null, "Actions"))),
                         react_1.default.createElement("tbody", null, domains.map((domain) => {
-                            var _a, _b, _c, _d;
+                            var _a, _b;
                             return (react_1.default.createElement("tr", { key: domain.domain, className: domain.isDisabled ? 'disabled-row' : '' },
                                 react_1.default.createElement("td", null, domain.domain),
                                 react_1.default.createElement("td", null,
-                                    react_1.default.createElement("span", { className: `status ${((_a = statuses[domain.domain]) === null || _a === void 0 ? void 0 : _a.hostConfigured) ? 'valid' : 'invalid'} ` }, ((_b = statuses[domain.domain]) === null || _b === void 0 ? void 0 : _b.hostConfigured) ? 'Configured' : 'Not Configured')),
-                                react_1.default.createElement("td", null,
-                                    react_1.default.createElement("span", { className: `status ${((_c = statuses[domain.domain]) === null || _c === void 0 ? void 0 : _c.certificateValid) ? 'valid' : 'invalid'} ` }, ((_d = statuses[domain.domain]) === null || _d === void 0 ? void 0 : _d.certificateValid) ? 'Valid' : 'Invalid/Missing')),
+                                    react_1.default.createElement("span", { className: `status ${((_a = statuses[domain.domain]) === null || _a === void 0 ? void 0 : _a.certificateValid) ? 'valid' : 'invalid'} ` }, ((_b = statuses[domain.domain]) === null || _b === void 0 ? void 0 : _b.certificateValid) ? 'Valid' : 'Invalid/Missing')),
                                 react_1.default.createElement("td", null,
                                     react_1.default.createElement("span", { className: `status ${domain.isDisabled ? 'warning' : 'valid'}` }, domain.isDisabled ? 'Disabled' : 'Enabled')),
-                                react_1.default.createElement("td", { className: "actions-cell" }, domain.isCreatedByUs && (react_1.default.createElement(react_1.default.Fragment, null,
+                                react_1.default.createElement("td", { className: "actions-cell" }, domain.isCreatedByUs ? (
+                                // Acciones para dominios gestionados
+                                react_1.default.createElement(react_1.default.Fragment, null,
                                     react_1.default.createElement("button", { onClick: () => toggleDomainState(domain.domain, !domain.isDisabled), className: `button ${domain.isDisabled ? 'success' : 'warning'}`, disabled: loading, title: domain.isDisabled ? 'Enable domain' : 'Disable domain' }, domain.isDisabled ? 'Enable' : 'Disable'),
                                     react_1.default.createElement("button", { onClick: () => refreshCertificate(domain.domain), className: "button secondary", disabled: loading, title: "Refresh SSL certificate" }, "Refresh Cert"),
-                                    react_1.default.createElement("button", { onClick: () => removeDomain(domain.domain), className: "button danger", disabled: loading, title: "Remove domain" }, "Remove"))))));
+                                    react_1.default.createElement("button", { onClick: () => removeDomain(domain.domain), className: "button danger", disabled: loading, title: "Remove domain" }, "Remove"))) : (
+                                // Acción para adoptar dominios no gestionados
+                                react_1.default.createElement("button", { onClick: () => adoptDomain(domain.domain, domain.ip), className: "button primary adopt-button", disabled: loading, title: "Start managing this domain with Navigrator" }, "Adopt")))));
                         }))))))),
             activeTab === 'certificates' && (react_1.default.createElement("div", { className: "certificates-list" },
                 react_1.default.createElement("h2", null, "SSL Certificates"),

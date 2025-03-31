@@ -82,6 +82,44 @@ export class WebServer {
       }
     });
 
+    // API para adoptar un host existente
+    this.app.post('/api/hosts/:domain/adopt', async (req, res) => {
+      try {
+        const { domain } = req.params;
+        const { ip = '127.0.0.1' } = req.body;
+
+        const success = await this.hostsManager.adoptHost(domain, ip);
+
+        if (success) {
+          res.json({ success: true, message: `Host ${domain} adopted successfully` });
+        } else {
+          res.status(404).json({ success: false, error: 'Host not found or already adopted' });
+        }
+      } catch (error) {
+        console.error('Error adopting host:', error);
+        res.status(500).json({ success: false, error: 'Failed to adopt host' });
+      }
+    });
+
+    // API para importar todos los hosts locales
+    this.app.post('/api/hosts/import-all', async (req, res) => {
+      try {
+        const result = await this.hostsManager.importAllLocalHosts();
+
+        if (result.success) {
+          res.json({
+            success: true,
+            message: `${result.count} hosts imported successfully`
+          });
+        } else {
+          res.status(404).json({ success: false, error: 'No hosts found to import' });
+        }
+      } catch (error) {
+        console.error('Error importing hosts:', error);
+        res.status(500).json({ success: false, error: 'Failed to import hosts' });
+      }
+    });
+
     // API para eliminar un host
     this.app.delete('/api/hosts/:domain', async (req, res) => {
       try {
@@ -101,7 +139,7 @@ export class WebServer {
       }
     });
 
-    // NUEVO: API para habilitar/deshabilitar un host
+    // API para habilitar/deshabilitar un host
     this.app.patch('/api/hosts/:domain/toggle', async (req, res) => {
       try {
         const { domain } = req.params;
