@@ -43,6 +43,7 @@ function App() {
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState<'domains' | 'certificates'>('domains');
   const [confirmImport, setConfirmImport] = useState(false);
+  const [confirmDeleteCertificate, setConfirmDeleteCertificate] = useState<string | null>(null);
 
   // Cargar datos al iniciar
   useEffect(() => {
@@ -206,18 +207,20 @@ function App() {
     setLoading(true);
 
     try {
-      // Eliminar del archivo hosts
+      // Eliminar del archivo hosts (y su certificado asociado automáticamente)
       const response = await fetch(`/api/hosts/${domain}`, {
         method: 'DELETE'
       });
 
       if (!response.ok) throw new Error('Failed to remove host');
 
+      const data = await response.json();
+
       // Actualizar datos
       await fetchData();
 
       // Mostrar notificación
-      showNotification(`Domain ${domain} removed successfully`, 'success');
+      showNotification(data.message, 'success');
     } catch (error: any) {
       showNotification(`Error removing domain: ${error?.message} `, 'error');
     } finally {
@@ -248,6 +251,30 @@ function App() {
       showNotification(`Domain ${domain} ${state} successfully`, 'success');
     } catch (error: any) {
       showNotification(`Error updating domain state: ${error?.message} `, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Eliminar un certificado
+  const deleteCertificate = async (domain: string) => {
+    setConfirmDeleteCertificate(null);
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/certificates/${domain}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Failed to delete certificate');
+
+      // Actualizar datos
+      await fetchData();
+
+      // Mostrar notificación
+      showNotification(`Certificate for ${domain} deleted successfully`, 'success');
+    } catch (error: any) {
+      showNotification(`Error deleting certificate: ${error?.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -325,6 +352,30 @@ function App() {
                 onClick={() => importAllDomains()}
               >
                 Confirm Import
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteCertificate && (
+        <div className="confirmation-dialog">
+          <div className="confirmation-content">
+            <h3>Delete Certificate</h3>
+            <p>Are you sure you want to delete the certificate for {confirmDeleteCertificate}?</p>
+            <p className="warning-text">This action cannot be undone.</p>
+            <div className="confirmation-actions">
+              <button
+                className="button secondary"
+                onClick={() => setConfirmDeleteCertificate(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="button danger"
+                onClick={() => deleteCertificate(confirmDeleteCertificate)}
+              >
+                Delete Certificate
               </button>
             </div>
           </div>
@@ -488,13 +539,22 @@ function App() {
                       </td>
                       <td>{cert.issuer}</td>
                       <td>{new Date(cert.validTo).toLocaleDateString()}</td>
-                      <td>
+                      <td className="actions-cell">
                         <button
                           onClick={() => refreshCertificate(cert.domain)}
                           className="button secondary"
                           disabled={loading}
+                          title="Refresh certificate"
                         >
                           Refresh
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteCertificate(cert.domain)}
+                          className="button danger"
+                          disabled={loading}
+                          title="Delete certificate"
+                        >
+                          Delete
                         </button>
                       </td>
                     </tr>

@@ -135,6 +135,13 @@ body {
   color: var(--secondary-color);
 }
 
+.warning-text {
+  color: var(--danger-color);
+  font-weight: bold;
+  margin-top: -10px;
+  margin-bottom: 20px;
+}
+
 .confirmation-actions {
   display: flex;
   justify-content: flex-end;

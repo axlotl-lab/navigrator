@@ -82,6 +82,34 @@ export class CertificateManager {
   }
 
   /**
+   * Elimina un certificado para un dominio
+   */
+  public async deleteCertificate(domain: string): Promise<boolean> {
+    try {
+      // Verificar si el certificado existe
+      const certInfo = await this.verifyCertificate(domain);
+      
+      // Si no existe, no hay nada que eliminar
+      if (!certInfo || !certInfo.certFilePath || !certInfo.keyFilePath) {
+        return false;
+      }
+      
+      // Eliminar archivos
+      try {
+        await fs.unlink(certInfo.certFilePath);
+        await fs.unlink(certInfo.keyFilePath);
+        return true;
+      } catch (error) {
+        console.error(`Error deleting certificate files for ${domain}:`, error);
+        return false;
+      }
+    } catch (error) {
+      console.error(`Error deleting certificate for ${domain}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Verifica si existe un certificado válido para el dominio
    */
   public async verifyCertificate(domain: string): Promise<CertificateInfo | null> {

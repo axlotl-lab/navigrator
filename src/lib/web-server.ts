@@ -126,10 +126,22 @@ export class WebServer {
         const { domain } = req.params;
         const { ip = '127.0.0.1' } = req.query;
 
-        const success = await this.hostsManager.removeHost(domain, ip as string);
+        const hostSuccess = await this.hostsManager.removeHost(domain, ip as string);
 
-        if (success) {
-          res.json({ success: true, message: `Host ${domain} removed successfully` });
+        // También eliminar el certificado asociado
+        let certSuccess = false;
+        try {
+          certSuccess = await this.certManager.deleteCertificate(domain);
+        } catch (certError) {
+          console.error(`Error removing certificate for ${domain}:`, certError);
+          // No fallamos la operación principal si falla la eliminación del certificado
+        }
+
+        if (hostSuccess) {
+          const message = certSuccess
+            ? `Host ${domain} and its certificate removed successfully`
+            : `Host ${domain} removed successfully`;
+          res.json({ success: true, message, certificateRemoved: certSuccess });
         } else {
           res.status(404).json({ success: false, error: 'Host not found or not created by this application' });
         }
@@ -209,6 +221,24 @@ export class WebServer {
       } catch (error) {
         console.error('Error creating certificate:', error);
         res.status(500).json({ success: false, error: 'Failed to create certificate' });
+      }
+    });
+
+    // API para eliminar un certificado
+    this.app.delete('/api/certificates/:domain', async (req, res) => {
+      try {
+        const { domain } = req.params;
+
+        const success = await this.certManager.deleteCertificate(domain);
+
+        if (success) {
+          res.json({ success: true, message: `Certificate for ${domain} removed successfully` });
+        } else {
+          res.status(404).json({ success: false, error: 'Certificate not found' });
+        }
+      } catch (error) {
+        console.error('Error removing certificate:', error);
+        res.status(500).json({ success: false, error: 'Failed to remove certificate' });
       }
     });
 
