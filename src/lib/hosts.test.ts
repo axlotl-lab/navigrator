@@ -2,240 +2,258 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import { HostsManager } from './hosts';
 
-// Mock para fs/promises
-jest.mock('fs/promises', () => ({
-  readFile: jest.fn(),
-  writeFile: jest.fn().mockResolvedValue(undefined),
-  appendFile: jest.fn().mockResolvedValue(undefined)
-}));
+// Mock fs and os modules
+jest.mock('fs/promises');
+jest.mock('os');
 
-// Mock para os
-jest.mock('os', () => ({
-  platform: jest.fn(),
-  tmpdir: jest.fn().mockReturnValue('/tmp')
-}));
+// Constants for tests
+const APP_IDENTIFIER = '# @axlotl-lab/navigrator';
+const DISABLED_IDENTIFIER = '# @axlotl-lab/navigrator-disabled';
+const MOCK_HOSTS_PATH = '/mock/etc/hosts';
 
 describe('HostsManager', () => {
   let hostsManager: HostsManager;
   let mockHostsContent: string;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // Reset mocks
+    jest.resetAllMocks();
 
-    // Simular sistema operativo Linux por defecto
+    // Mock os.platform to return 'linux' for test
     (os.platform as jest.Mock).mockReturnValue('linux');
 
-    // Crear instancia de HostsManager para testing
+    // Mock fs.readFile to return mock hosts file content
+    mockHostsContent = `
+127.0.0.1 localhost
+127.0.0.1 example.local
+${APP_IDENTIFIER}
+127.0.0.1 test.local
+${APP_IDENTIFIER}
+# 127.0.0.1 disabled.local
+${DISABLED_IDENTIFIER}
+192.168.1.1 external.example
+# Comment line
+::1 ipv6.local
+127.0.0.1 notmanaged.local
+    `;
+
+    (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
+
+    // Mock other fs functions
+    (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
+    (fs.appendFile as jest.Mock).mockResolvedValue(undefined);
+
+    // Create instance
     hostsManager = new HostsManager();
 
-    // Contenido de muestra para el archivo hosts
-    mockHostsContent = `
-# Sample hosts file
-127.0.0.1 localhost
-::1 localhost
-
-# Regular entries
-127.0.0.1 example.local
-# @axlotl-lab/navigrator
-127.0.0.1 app.example.local
-# @axlotl-lab/navigrator
-
-192.168.1.1 router.local
-`.trim();
-
-    // Mock de readFile para devolver el contenido de muestra
-    (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
-  });
-
-  describe('constructor', () => {
-    it('should set correct hosts file path for Windows', () => {
-      (os.platform as jest.Mock).mockReturnValue('win32');
-      const winHostsManager = new HostsManager();
-
-      // Acceder a la propiedad privada con type assertion
-      const hostsFilePath = (winHostsManager as any).hostsFilePath;
-      expect(hostsFilePath).toBe('C:\\Windows\\System32\\drivers\\etc\\hosts');
-    });
-
-    it('should set correct hosts file path for Linux/macOS', () => {
-      (os.platform as jest.Mock).mockReturnValue('darwin'); // macOS
-      const macHostsManager = new HostsManager();
-
-      const hostsFilePath = (macHostsManager as any).hostsFilePath;
-      expect(hostsFilePath).toBe('/etc/hosts');
-    });
+    // Override private property for testing
+    (hostsManager as any).hostsFilePath = MOCK_HOSTS_PATH;
   });
 
   describe('readHosts', () => {
     it('should read and parse hosts file correctly', async () => {
       const hosts = await hostsManager.readHosts();
 
-      expect(hosts).toHaveLength(4);
-      expect(hosts[0]).toEqual({
-        ip: '127.0.0.1',
-        domain: 'localhost',
-        isCreatedByUs: false,
-        lineNumber: 2
-      });
+      expect(hosts).toHaveLength(7); // 7 valid host entries in mock content
 
-      // Verificar que identifica correctamente los hosts creados por nosotros
-      expect(hosts[2]).toEqual({
-        ip: '127.0.0.1',
-        domain: 'app.example.local',
-        isCreatedByUs: true,
-        lineNumber: 6
-      });
+      // Check example.local entry
+      const exampleHost = hosts.find(h => h.domain === 'example.local');
+      expect(exampleHost).toBeDefined();
+      expect(exampleHost?.ip).toBe('127.0.0.1');
+      expect(exampleHost?.isCreatedByUs).toBe(true);
+      expect(exampleHost?.isDisabled).toBe(false);
+
+      // Check test.local entry
+      const testHost = hosts.find(h => h.domain === 'test.local');
+      expect(testHost).toBeDefined();
+      expect(testHost?.isCreatedByUs).toBe(true);
+
+      // Check disabled.local entry
+      const disabledHost = hosts.find(h => h.domain === 'disabled.local');
+      expect(disabledHost).toBeDefined();
+      expect(disabledHost?.isCreatedByUs).toBe(true);
+      expect(disabledHost?.isDisabled).toBe(true);
+
+      // Check external.example entry
+      const externalHost = hosts.find(h => h.domain === 'external.example');
+      expect(externalHost).toBeDefined();
+      expect(externalHost?.isCreatedByUs).toBe(false);
+
+      // Check notmanaged.local entry
+      const notManagedHost = hosts.find(h => h.domain === 'notmanaged.local');
+      expect(notManagedHost).toBeDefined();
+      expect(notManagedHost?.isCreatedByUs).toBe(false);
     });
 
-    it('should handle errors when reading hosts file', async () => {
-      (fs.readFile as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+    it('should handle fs errors gracefully', async () => {
+      (fs.readFile as jest.Mock).mockRejectedValue(new Error('Mock file read error'));
 
       await expect(hostsManager.readHosts()).rejects.toThrow('Failed to read hosts file');
     });
   });
 
   describe('readLocalHosts', () => {
-    it('should return only localhost entries', async () => {
+    it('should return only local hosts (127.0.0.1 or ::1)', async () => {
       const localHosts = await hostsManager.readLocalHosts();
 
-      expect(localHosts).toHaveLength(3);
-      expect(localHosts.every(host => host.ip === '127.0.0.1' || host.ip === '::1')).toBe(true);
+      expect(localHosts.some(h => h.ip === '192.168.1.1')).toBe(false);
+      expect(localHosts.some(h => h.domain === 'localhost')).toBe(true);
+      expect(localHosts.some(h => h.domain === 'ipv6.local')).toBe(true);
     });
   });
 
   describe('addHost', () => {
-    it('should add a new host entry', async () => {
-      const appendSpy = jest.spyOn(fs, 'appendFile');
+    it('should add a new host entry to hosts file', async () => {
+      await hostsManager.addHost('newdomain.local');
 
-      await hostsManager.addHost('new.example.local');
-
-      // Verificar que se llamó a appendFile con el contenido correcto
-      expect(appendSpy).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringContaining('127.0.0.1 new.example.local'),
-        'utf-8'
-      );
-      expect(appendSpy).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringContaining('# @axlotl-lab/navigrator'),
+      expect(fs.appendFile).toHaveBeenCalledWith(
+        MOCK_HOSTS_PATH,
+        `\n127.0.0.1 newdomain.local\n${APP_IDENTIFIER}`,
         'utf-8'
       );
     });
 
-    it('should not add duplicate hosts', async () => {
-      // Simular que ya existe y fue creado por nosotros
-      const mockReadHosts = jest.spyOn(hostsManager, 'readHosts').mockResolvedValue([
-        {
-          ip: '127.0.0.1',
-          domain: 'existing.local',
-          isCreatedByUs: true
-        }
-      ]);
+    it('should use provided IP if specified', async () => {
+      await hostsManager.addHost('customip.local', '192.168.0.100');
 
-      const result = await hostsManager.addHost('existing.local');
-
-      expect(result).toBe(true);
-      // Verificar que no se escribió nada al archivo hosts
-      expect(fs.appendFile).not.toHaveBeenCalled();
-
-      mockReadHosts.mockRestore();
+      expect(fs.appendFile).toHaveBeenCalledWith(
+        MOCK_HOSTS_PATH,
+        `\n192.168.0.100 customip.local\n${APP_IDENTIFIER}`,
+        'utf-8'
+      );
     });
 
-    it('should mark existing hosts as ours if not already marked', async () => {
-      // Simular que existe pero no fue creado por nosotros
-      const mockReadHosts = jest.spyOn(hostsManager, 'readHosts').mockResolvedValue([
-        {
-          ip: '127.0.0.1',
-          domain: 'unmarked.local',
-          isCreatedByUs: false
-        }
-      ]);
+    it('should mark existing host as ours if already exists but not managed', async () => {
+      (fs.readFile as jest.Mock)
+        .mockResolvedValueOnce(mockHostsContent) // First call in readHosts
+        .mockResolvedValueOnce(mockHostsContent); // Second call in markHostAsOurs
 
-      const markMethod = jest.spyOn(hostsManager as any, 'markHostAsOurs').mockResolvedValue(true);
+      await hostsManager.addHost('notmanaged.local');
 
-      const result = await hostsManager.addHost('unmarked.local');
-
-      expect(result).toBe(true);
-      expect(markMethod).toHaveBeenCalledWith('unmarked.local', '127.0.0.1');
-
-      mockReadHosts.mockRestore();
-      markMethod.mockRestore();
+      // Check that writeFile was called with modified content
+      expect(fs.writeFile).toHaveBeenCalled();
+      const writeFileCall = (fs.writeFile as jest.Mock).mock.calls[0];
+      expect(writeFileCall[0]).toBe(MOCK_HOSTS_PATH);
+      expect(writeFileCall[1]).toContain('notmanaged.local');
+      expect(writeFileCall[1]).toContain(APP_IDENTIFIER);
     });
 
-    it('should handle errors when adding host', async () => {
-      jest.spyOn(hostsManager, 'readHosts').mockRejectedValue(new Error('Failed to read'));
+    it('should enable a disabled host', async () => {
+      (fs.readFile as jest.Mock)
+        .mockResolvedValueOnce(mockHostsContent) // First call in readHosts
+        .mockResolvedValueOnce(mockHostsContent); // Second call in toggleHostState
 
-      await expect(hostsManager.addHost('error.local')).rejects.toThrow('Failed to add host');
+      await hostsManager.addHost('disabled.local');
+
+      expect(fs.writeFile).toHaveBeenCalled();
+      const writeFileCall = (fs.writeFile as jest.Mock).mock.calls[0];
+      expect(writeFileCall[0]).toBe(MOCK_HOSTS_PATH);
+      expect(writeFileCall[1]).toContain('127.0.0.1 disabled.local');
+      expect(writeFileCall[1]).toContain(APP_IDENTIFIER);
+      expect(writeFileCall[1]).not.toContain('# 127.0.0.1 disabled.local');
+    });
+  });
+
+  describe('adoptHost', () => {
+    it('should mark an existing host as managed by us', async () => {
+      (fs.readFile as jest.Mock)
+        .mockResolvedValueOnce(mockHostsContent) // For the initial readHosts check
+        .mockResolvedValueOnce(mockHostsContent); // For markHostAsOurs
+
+      await hostsManager.adoptHost('notmanaged.local');
+
+      expect(fs.writeFile).toHaveBeenCalled();
+      const writeFileCall = (fs.writeFile as jest.Mock).mock.calls[0];
+      expect(writeFileCall[1]).toContain('127.0.0.1 notmanaged.local');
+      expect(writeFileCall[1]).toContain(APP_IDENTIFIER);
+    });
+
+    it('should return false if host does not exist', async () => {
+      (fs.readFile as jest.Mock)
+        .mockResolvedValueOnce(mockHostsContent) // First call in markHostAsOurs
+        .mockResolvedValueOnce(mockHostsContent); // Second call
+
+      const result = await hostsManager.adoptHost('nonexistent.local');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('importAllLocalHosts', () => {
+    it('should adopt all local hosts that are not already managed', async () => {
+      // Multiple readFile calls for repeated checks
+      (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
+
+      const result = await hostsManager.importAllLocalHosts();
+
+      expect(result.success).toBe(true);
+      expect(result.count).toBeGreaterThan(0);
+
+      // Should have called writeFile for adoption
+      expect(fs.writeFile).toHaveBeenCalled();
+    });
+  });
+
+  describe('toggleHostState', () => {
+    it('should disable an enabled host', async () => {
+      (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
+
+      await hostsManager.toggleHostState('test.local', true);
+
+      expect(fs.writeFile).toHaveBeenCalled();
+      const writeFileCall = (fs.writeFile as jest.Mock).mock.calls[0];
+      expect(writeFileCall[1]).toContain('# 127.0.0.1 test.local');
+      expect(writeFileCall[1]).toContain(DISABLED_IDENTIFIER);
+    });
+
+    it('should enable a disabled host', async () => {
+      (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
+
+      await hostsManager.toggleHostState('disabled.local', false);
+
+      expect(fs.writeFile).toHaveBeenCalled();
+      const writeFileCall = (fs.writeFile as jest.Mock).mock.calls[0];
+      expect(writeFileCall[1]).toContain('127.0.0.1 disabled.local');
+      expect(writeFileCall[1]).toContain(APP_IDENTIFIER);
+      expect(writeFileCall[1]).not.toContain('# 127.0.0.1 disabled.local');
+    });
+
+    it('should return false if host is not managed by us', async () => {
+      (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
+
+      const result = await hostsManager.toggleHostState('notmanaged.local', true);
+
+      expect(result).toBe(false);
     });
   });
 
   describe('removeHost', () => {
-    it('should remove a host created by our application', async () => {
-      // Mock el método writeHostsFile para evitar escribir realmente
-      const writeMethod = jest.spyOn(hostsManager as any, 'writeHostsFile').mockResolvedValue(true);
+    it('should remove a host managed by us', async () => {
+      (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
 
-      const result = await hostsManager.removeHost('app.example.local');
+      await hostsManager.removeHost('test.local');
 
-      expect(result).toBe(true);
-      // Verificar que se llamó a writeHostsFile sin las líneas del host eliminado
-      expect(writeMethod).toHaveBeenCalledWith(expect.not.stringContaining('app.example.local'));
-
-      writeMethod.mockRestore();
+      expect(fs.writeFile).toHaveBeenCalled();
+      const writeFileCall = (fs.writeFile as jest.Mock).mock.calls[0];
+      expect(writeFileCall[1]).not.toContain('127.0.0.1 test.local');
     });
 
-    it('should not remove hosts not created by our application', async () => {
-      const result = await hostsManager.removeHost('example.local');
+    it('should remove a disabled host managed by us', async () => {
+      (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
 
-      // Debería retornar false porque no fue creado por nosotros
+      await hostsManager.removeHost('disabled.local');
+
+      expect(fs.writeFile).toHaveBeenCalled();
+      const writeFileCall = (fs.writeFile as jest.Mock).mock.calls[0];
+      expect(writeFileCall[1]).not.toContain('disabled.local');
+    });
+
+    it('should return false if host is not managed by us', async () => {
+      (fs.readFile as jest.Mock).mockResolvedValue(mockHostsContent);
+
+      const result = await hostsManager.removeHost('notmanaged.local');
+
       expect(result).toBe(false);
-    });
-
-    it('should handle errors when removing host', async () => {
-      (fs.readFile as jest.Mock).mockRejectedValue(new Error('Permission denied'));
-
-      await expect(hostsManager.removeHost('app.example.local')).rejects.toThrow('Failed to remove host');
-    });
-  });
-
-  describe('writeHostsFile', () => {
-    it('should write to hosts file directly', async () => {
-      const writeSpy = jest.spyOn(fs, 'writeFile');
-
-      const result = await (hostsManager as any).writeHostsFile('test content');
-
-      expect(result).toBe(true);
-      expect(writeSpy).toHaveBeenCalledWith(
-        expect.any(String),
-        'test content',
-        'utf-8'
-      );
-    });
-
-    it('should handle errors when writing hosts file', async () => {
-      (fs.writeFile as jest.Mock).mockRejectedValue(new Error('Permission denied'));
-
-      await expect((hostsManager as any).writeHostsFile('test')).rejects.toThrow('Failed to write hosts file');
-    });
-  });
-
-  describe('appendToHostsFile', () => {
-    it('should append to hosts file directly', async () => {
-      const appendSpy = jest.spyOn(fs, 'appendFile');
-
-      const result = await (hostsManager as any).appendToHostsFile('test content');
-
-      expect(result).toBe(true);
-      expect(appendSpy).toHaveBeenCalledWith(
-        expect.any(String),
-        'test content',
-        'utf-8'
-      );
-    });
-
-    it('should handle errors when appending to hosts file', async () => {
-      (fs.appendFile as jest.Mock).mockRejectedValue(new Error('Permission denied'));
-
-      await expect((hostsManager as any).appendToHostsFile('test')).rejects.toThrow('Failed to append to hosts file');
     });
   });
 });

@@ -5,7 +5,6 @@ import * as os from 'os';
 import * as path from 'path';
 import { CertificateManager } from './certificates';
 
-// Mock para fs/promises
 jest.mock('fs/promises', () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
   readFile: jest.fn(),
@@ -14,7 +13,6 @@ jest.mock('fs/promises', () => ({
   access: jest.fn()
 }));
 
-// Mock para child_process
 jest.mock('child_process', () => ({
   execSync: jest.fn(),
   exec: jest.fn((command, callback) => {
@@ -23,7 +21,6 @@ jest.mock('child_process', () => ({
   })
 }));
 
-// Mock para node-forge
 jest.mock('node-forge', () => {
   const actualForge = jest.requireActual('node-forge');
   return {
@@ -102,7 +99,6 @@ describe('CertificateManager', () => {
     });
 
     it('should initialize mkcert if available', async () => {
-      // Simular que mkcert está instalado
       jest.spyOn(certManager as any, 'checkMkcertInstalled').mockReturnValue(true);
 
       await certManager.initialize();
@@ -119,12 +115,10 @@ describe('CertificateManager', () => {
 
   describe('createCertificate', () => {
     beforeEach(() => {
-      // Acceder a propiedades privadas
       (certManager as any).certsDir = testDir;
     });
 
     it('should use mkcert if available', async () => {
-      // Simular que mkcert está instalado
       jest.spyOn(certManager as any, 'checkMkcertInstalled').mockReturnValue(true);
       (certManager as any).hasMkcert = true;
 
@@ -145,7 +139,6 @@ describe('CertificateManager', () => {
     });
 
     it('should use node-forge if mkcert is not available', async () => {
-      // Simular que mkcert no está instalado
       jest.spyOn(certManager as any, 'checkMkcertInstalled').mockReturnValue(false);
       (certManager as any).hasMkcert = false;
 
@@ -168,13 +161,9 @@ describe('CertificateManager', () => {
 
   describe('verifyCertificate', () => {
     beforeEach(() => {
-      // Acceder a propiedades privadas
       (certManager as any).certsDir = testDir;
 
-      // Mock para tener acceso a los archivos
       (fs.access as jest.Mock).mockResolvedValue(undefined);
-
-      // Mock para leer el archivo de certificado
       (fs.readFile as jest.Mock).mockResolvedValue('-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAJC1HiIAZAiIMA==\n-----END CERTIFICATE-----\n');
     });
 
@@ -207,7 +196,6 @@ describe('CertificateManager', () => {
 
   describe('listCertificates', () => {
     beforeEach(() => {
-      // Mock para listar archivos
       (fs.readdir as jest.Mock).mockResolvedValue([
         'test1.local.crt',
         'test1.local.key',
@@ -215,7 +203,6 @@ describe('CertificateManager', () => {
         'test2.local.key'
       ]);
 
-      // Mock para verificar certificados
       jest.spyOn(certManager, 'verifyCertificate').mockImplementation(async (domain) => {
         return {
           domain,
@@ -240,7 +227,7 @@ describe('CertificateManager', () => {
     it('should filter out invalid certificates', async () => {
       jest.spyOn(certManager, 'verifyCertificate').mockImplementation(async (domain) => {
         if (domain === 'test1.local') {
-          return null; // Certificado inválido
+          return null;
         }
         return {
           domain,
