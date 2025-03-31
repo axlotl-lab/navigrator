@@ -9,15 +9,12 @@ import { CertificateManager } from './lib/certificates';
 import { HostsManager } from './lib/hosts';
 import { WebServer } from './lib/web-server';
 
-// Crear instancia de la CLI
 const program = new Command();
 
-// Versión y descripción
 program
   .version('1.0.0')
   .description('A local domain manager for development environments');
 
-// Función para mostrar el banner
 function displayBanner() {
   console.log(
     chalk.blue(
@@ -27,17 +24,15 @@ function displayBanner() {
   console.log(chalk.cyan('  Local domain manager by Axlotl Lab\n'));
 }
 
-// Comando principal
+// Main command
 program
   .command('start')
   .description('Start the web interface')
   .option('-p, --port <port>', 'HTTP port to use', '3000')
-  .option('-s, --ssl-port <port>', 'HTTPS port to use', '3443')
-  .option('--no-ssl', 'Disable HTTPS server')
   .action(async (options) => {
     displayBanner();
 
-    // Verificar privilegios
+    // Verify privileges
     const isRoot = process.getuid && process.getuid() === 0;
     const isAdmin = process.platform === 'win32' && new Buffer(process.env.PATH!, 'utf-8').toString().toLowerCase().includes('system32');
 
@@ -47,29 +42,22 @@ program
     }
 
     try {
-      // Crear instancias de los managers
       const hostsManager = new HostsManager();
       const certsDir = path.join(os.homedir(), '.navigrator', 'certs');
       const certManager = new CertificateManager(certsDir);
 
-      // Inicializar el gestor de certificados
       console.log(chalk.cyan('Initializing certificate manager...'));
       await certManager.initialize();
 
-      // Configurar el servidor web
       const config = {
-        port: parseInt(options.port, 10),
-        sslPort: parseInt(options.sslPort, 10),
-        enableSSL: options.ssl
+        port: parseInt(options.port, 10)
       };
 
       const webServer = new WebServer(hostsManager, certManager, config);
 
-      // Iniciar servidor
       console.log(chalk.cyan('Starting server...'));
       await webServer.start();
 
-      // Manejar cierre del proceso
       const handleShutdown = async () => {
         console.log(chalk.cyan('\nShutting down server...'));
         await webServer.stop();
@@ -85,7 +73,7 @@ program
     }
   });
 
-// Comando para listar hosts
+// Command to list all local domains
 program
   .command('list')
   .description('List all local domains')
@@ -114,7 +102,7 @@ program
     }
   });
 
-// Comando para agregar un dominio
+// Command to add a new domain
 program
   .command('add <domain>')
   .description('Add a new local domain')
@@ -127,14 +115,11 @@ program
       const certsDir = path.join(os.homedir(), '.navigrator', 'certs');
       const certManager = new CertificateManager(certsDir);
 
-      // Inicializar el gestor de certificados
       await certManager.initialize();
 
-      // Agregar al archivo hosts
       console.log(chalk.cyan(`Adding ${domain} to hosts file...`));
       await hostsManager.addHost(domain, options.ip);
 
-      // Crear certificado
       console.log(chalk.cyan(`Creating SSL certificate for ${domain}...`));
       await certManager.createCertificate(domain);
 
@@ -145,7 +130,7 @@ program
     }
   });
 
-// Comando para eliminar un dominio
+// Command to remove a domain
 program
   .command('remove <domain>')
   .description('Remove a local domain')
@@ -169,10 +154,9 @@ program
     }
   });
 
-// Analizar argumentos de la línea de comandos
 program.parse(process.argv);
 
-// Si no se proporciona ningún argumento, mostrar ayuda
+// If no argument is provided, show help
 if (process.argv.length === 2) {
   displayBanner();
   program.outputHelp();

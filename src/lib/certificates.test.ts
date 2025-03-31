@@ -15,7 +15,7 @@ jest.mock('fs/promises', () => ({
 
 jest.mock('child_process', () => ({
   execSync: jest.fn(),
-  exec: jest.fn((command, callback) => {
+  exec: jest.fn((_, callback) => {
     if (callback) callback(null, { stdout: '', stderr: '' });
     return { stdout: '', stderr: '' };
   })
