@@ -28,7 +28,7 @@ function displayBanner() {
 program
   .command('start')
   .description('Start the web interface')
-  .option('-p, --port <port>', 'HTTP port to use', '3000')
+  .option('-p, --port <port>', 'HTTP port to use', '10191')
   .action(async (options) => {
     displayBanner();
 
