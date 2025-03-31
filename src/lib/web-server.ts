@@ -7,8 +7,6 @@ import { HostsManager } from './hosts';
 
 export interface WebServerConfig {
   port: number;
-  sslPort?: number;
-  enableSSL?: boolean;
 }
 
 export class WebServer {
@@ -23,9 +21,7 @@ export class WebServer {
     this.hostsManager = hostsManager;
     this.certManager = certManager;
     this.config = {
-      port: config.port || 3000,
-      sslPort: config.sslPort,
-      enableSSL: config.enableSSL
+      port: config.port || 10191,
     };
 
     this.setupMiddleware();
