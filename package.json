@@ -1,11 +1,12 @@
 {
   "name": "@axlotl-lab/navigrator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "files": [
-    "dist"
+    "dist",
+    "public"
   ],
   "bin": {
     "navigrator": "dist/cli.js"

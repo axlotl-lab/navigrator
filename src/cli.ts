@@ -12,7 +12,7 @@ import { WebServer } from './lib/web-server';
 const program = new Command();
 
 program
-  .version('1.0.0')
+  .version('1.0.1')
   .description('A local domain manager for development environments');
 
 function displayBanner() {
