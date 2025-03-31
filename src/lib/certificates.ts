@@ -22,20 +22,17 @@ export class CertificateManager {
   private hasMkcert: boolean;
 
   constructor(certsDir?: string) {
-    // Directorio donde se guardarán los certificados
     this.certsDir = certsDir || path.join(os.homedir(), '.navigrator', 'certs');
-    // Verificar si mkcert está instalado
     this.hasMkcert = this.checkMkcertInstalled();
   }
 
   /**
-   * Inicializa el directorio de certificados
+   * Initialize the certificate directory
    */
   public async initialize(): Promise<void> {
     try {
       await fs.mkdir(this.certsDir, { recursive: true });
 
-      // Si mkcert está disponible, inicializarlo
       if (this.hasMkcert) {
         await this.initMkcert();
       }
@@ -46,7 +43,7 @@ export class CertificateManager {
   }
 
   /**
-   * Verifica si mkcert está instalado en el sistema
+   * Verify if mkcert is installed on the system
    */
   private checkMkcertInstalled(): boolean {
     try {
@@ -58,7 +55,7 @@ export class CertificateManager {
   }
 
   /**
-   * Inicializa mkcert (crear CA local)
+   * Initialize mkcert (create local CA)
    */
   private async initMkcert(): Promise<void> {
     try {
@@ -70,8 +67,8 @@ export class CertificateManager {
   }
 
   /**
-   * Crea un certificado para un dominio usando mkcert si está disponible,
-   * o node-forge si no lo está
+   * Create a certificate for a domain using mkcert if available,
+   * or node-forge if not
    */
   public async createCertificate(domain: string): Promise<CertificateInfo> {
     if (this.hasMkcert) {
@@ -82,19 +79,16 @@ export class CertificateManager {
   }
 
   /**
-   * Elimina un certificado para un dominio
+   * Delete a certificate for a domain
    */
   public async deleteCertificate(domain: string): Promise<boolean> {
     try {
-      // Verificar si el certificado existe
       const certInfo = await this.verifyCertificate(domain);
       
-      // Si no existe, no hay nada que eliminar
       if (!certInfo || !certInfo.certFilePath || !certInfo.keyFilePath) {
         return false;
       }
       
-      // Eliminar archivos
       try {
         await fs.unlink(certInfo.certFilePath);
         await fs.unlink(certInfo.keyFilePath);
@@ -110,41 +104,36 @@ export class CertificateManager {
   }
 
   /**
-   * Verifica si existe un certificado válido para el dominio
+   * Verify if a valid certificate exists for the domain
    */
   public async verifyCertificate(domain: string): Promise<CertificateInfo | null> {
     try {
       const certPath = path.join(this.certsDir, `${domain}.crt`);
       const keyPath = path.join(this.certsDir, `${domain}.key`);
 
-      // Verificar si los archivos existen
+      // Verify permissions
       try {
         await fs.access(certPath);
         await fs.access(keyPath);
       } catch (error) {
-        return null; // Si no existen, no hay certificado válido
+        return null; // If the certs cannot be accessed, there is no valid certificate
       }
 
-      // Leer certificado
       const certPem = await fs.readFile(certPath, 'utf-8');
 
-      // Parsear certificado para obtener información
       const cert = forge.pki.certificateFromPem(certPem);
-
-      // Obtener fechas de validez
       const validFrom = new Date(cert.validity.notBefore);
       const validTo = new Date(cert.validity.notAfter);
 
-      // Verificar si está dentro del período de validez
+      // Verify if the certificate is within the validity period
       const now = new Date();
       const isValid = now >= validFrom && now <= validTo;
 
-      // Verificar si el dominio está incluido en el certificado
+      // Verify if the domain is included in the certificate
       const altNames = this.getSubjectAltNames(cert);
       const domainIncluded = altNames.includes(domain) ||
         cert.subject.getField('CN')?.value === domain;
 
-      // Obtener información del emisor
       const issuerCN = cert.issuer.getField('CN')?.value || 'Unknown';
 
       return {
@@ -163,7 +152,7 @@ export class CertificateManager {
   }
 
   /**
-   * Obtiene los nombres alternativos del certificado
+   * Get the subject alternative names of the certificate
    */
   private getSubjectAltNames(cert: forge.pki.Certificate): string[] {
     try {
@@ -189,19 +178,18 @@ export class CertificateManager {
   }
 
   /**
-   * Crea un certificado usando mkcert
+   * Create a certificate using mkcert
    */
   private async createCertificateWithMkcert(domain: string): Promise<CertificateInfo> {
     try {
       const certPath = path.join(this.certsDir, `${domain}.crt`);
       const keyPath = path.join(this.certsDir, `${domain}.key`);
-
-      // Crear certificado con mkcert
       const command = `mkcert -cert-file "${certPath}" -key-file "${keyPath}" "${domain}"`;
+    
       await execAsync(command);
 
-      // Verificar que se creó el certificado
       const certInfo = await this.verifyCertificate(domain);
+     
       if (!certInfo) {
         throw new Error(`Failed to create certificate for ${domain}`);
       }
@@ -214,24 +202,21 @@ export class CertificateManager {
   }
 
   /**
-   * Crea un certificado usando node-forge
+   * Create a certificate using node-forge
    */
   private async createCertificateWithForge(domain: string): Promise<CertificateInfo> {
     try {
-      // Generar par de claves
       const keys = forge.pki.rsa.generateKeyPair({ bits: 2048 });
-
-      // Crear certificado
       const cert = forge.pki.createCertificate();
+
       cert.publicKey = keys.publicKey;
       cert.serialNumber = '01' + this.randomHex(16);
 
-      // Establecer validez (1 año)
+      // Set validity (1 year)
       const now = new Date();
       cert.validity.notBefore = now;
       cert.validity.notAfter = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
 
-      // Establecer atributos del sujeto y emisor
       const attrs = [
         { name: 'commonName', value: domain },
         { name: 'organizationName', value: 'Axlotl Lab Navigrator' },
@@ -240,7 +225,6 @@ export class CertificateManager {
       cert.setSubject(attrs);
       cert.setIssuer(attrs);
 
-      // Agregar extensiones
       cert.setExtensions([
         {
           name: 'basicConstraints',
@@ -258,19 +242,15 @@ export class CertificateManager {
         {
           name: 'subjectAltName',
           altNames: [
-            { type: 2, value: domain } // Tipo 2 para DNS
+            { type: 2, value: domain } // Type 2 for DNS
           ]
         }
       ]);
 
-      // Firmar certificado
       cert.sign(keys.privateKey, forge.md.sha256.create());
 
-      // Convertir a PEM
       const certPem = forge.pki.certificateToPem(cert);
       const keyPem = forge.pki.privateKeyToPem(keys.privateKey);
-
-      // Guardar archivos
       const certPath = path.join(this.certsDir, `${domain}.crt`);
       const keyPath = path.join(this.certsDir, `${domain}.key`);
 
@@ -301,16 +281,12 @@ export class CertificateManager {
   }
 
   /**
-   * Lista todos los certificados creados por la aplicación
+   * List all certificates created by the application
    */
   public async listCertificates(): Promise<CertificateInfo[]> {
     try {
       const files = await fs.readdir(this.certsDir);
-
-      // Filtrar archivos de certificado (.crt)
       const certFiles = files.filter(file => file.endsWith('.crt'));
-
-      // Procesar cada certificado
       const certificates: CertificateInfo[] = [];
 
       for (const certFile of certFiles) {

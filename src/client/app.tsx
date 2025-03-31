@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './styles.css';
 
-/**
- * Tipos de datos
- */
 interface Host {
   ip: string;
   domain: string;
@@ -30,9 +27,6 @@ interface DomainStatus {
   isDisabled: boolean;
 }
 
-/**
- * Componente principal
- */
 function App() {
   const [domains, setDomains] = useState<Host[]>([]);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
@@ -45,12 +39,10 @@ function App() {
   const [confirmImport, setConfirmImport] = useState(false);
   const [confirmDeleteCertificate, setConfirmDeleteCertificate] = useState<string | null>(null);
 
-  // Cargar datos al iniciar
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Cargar todos los datos
   const fetchData = async () => {
     setLoading(true);
     setError(null);
@@ -68,7 +60,6 @@ function App() {
     }
   };
 
-  // Cargar hosts
   const fetchHosts = async () => {
     const response = await fetch('/api/hosts');
     if (!response.ok) throw new Error('Failed to fetch hosts');
@@ -76,11 +67,9 @@ function App() {
     const data = await response.json();
     setDomains(data.hosts);
 
-    // Actualizar estado para cada dominio
     await Promise.all(data.hosts.map((host: any) => fetchDomainStatus(host.domain)));
   };
 
-  // Cargar certificados
   const fetchCertificates = async () => {
     const response = await fetch('/api/certificates');
     if (!response.ok) throw new Error('Failed to fetch certificates');
@@ -89,7 +78,6 @@ function App() {
     setCertificates(data.certificates);
   };
 
-  // Verificar estado de un dominio
   const fetchDomainStatus = async (domain: string) => {
     const response = await fetch(`/api/status/${domain}`);
     if (!response.ok) return;
@@ -101,7 +89,6 @@ function App() {
     }));
   };
 
-  // Agregar un nuevo dominio
   const addDomain = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -110,7 +97,6 @@ function App() {
     setLoading(true);
 
     try {
-      // Agregar al archivo hosts
       const hostResponse = await fetch('/api/hosts', {
         method: 'POST',
         headers: {
@@ -121,7 +107,6 @@ function App() {
 
       if (!hostResponse.ok) throw new Error('Failed to add host');
 
-      // Crear certificado
       const certResponse = await fetch('/api/certificates', {
         method: 'POST',
         headers: {
@@ -132,13 +117,10 @@ function App() {
 
       if (!certResponse.ok) throw new Error('Failed to create certificate');
 
-      // Actualizar datos
       await fetchData();
 
-      // Mostrar notificación
       showNotification(`Domain ${newDomain} added successfully`, 'success');
 
-      // Limpiar campo
       setNewDomain('');
     } catch (error: any) {
       showNotification(`Error adding domain: ${error?.message}`, 'error');
@@ -147,7 +129,6 @@ function App() {
     }
   };
 
-  // Adoptar un dominio existente
   const adoptDomain = async (domain: string, ip: string) => {
     setLoading(true);
 
@@ -162,10 +143,8 @@ function App() {
 
       if (!response.ok) throw new Error('Failed to adopt host');
 
-      // Actualizar datos
       await fetchData();
 
-      // Mostrar notificación
       showNotification(`Domain ${domain} adopted successfully`, 'success');
     } catch (error: any) {
       showNotification(`Error adopting domain: ${error?.message}`, 'error');
@@ -174,7 +153,6 @@ function App() {
     }
   };
 
-  // Importar todos los dominios locales
   const importAllDomains = async () => {
     setLoading(true);
     setConfirmImport(false);
@@ -188,10 +166,8 @@ function App() {
 
       const data = await response.json();
 
-      // Actualizar datos
       await fetchData();
 
-      // Mostrar notificación
       showNotification(data.message, 'success');
     } catch (error: any) {
       showNotification(`Error importing domains: ${error?.message}`, 'error');
@@ -200,14 +176,12 @@ function App() {
     }
   };
 
-  // Eliminar un dominio
   const removeDomain = async (domain: string) => {
     if (!confirm(`Are you sure you want to remove ${domain}?`)) return;
 
     setLoading(true);
 
     try {
-      // Eliminar del archivo hosts (y su certificado asociado automáticamente)
       const response = await fetch(`/api/hosts/${domain}`, {
         method: 'DELETE'
       });
@@ -216,10 +190,8 @@ function App() {
 
       const data = await response.json();
 
-      // Actualizar datos
       await fetchData();
 
-      // Mostrar notificación
       showNotification(data.message, 'success');
     } catch (error: any) {
       showNotification(`Error removing domain: ${error?.message} `, 'error');
@@ -228,7 +200,6 @@ function App() {
     }
   };
 
-  // Habilitar/deshabilitar un dominio
   const toggleDomainState = async (domain: string, disable: boolean) => {
     setLoading(true);
 
@@ -243,10 +214,8 @@ function App() {
 
       if (!response.ok) throw new Error('Failed to toggle domain state');
 
-      // Actualizar datos
       await fetchData();
 
-      // Mostrar notificación
       const state = disable ? 'disabled' : 'enabled';
       showNotification(`Domain ${domain} ${state} successfully`, 'success');
     } catch (error: any) {
@@ -256,7 +225,6 @@ function App() {
     }
   };
 
-  // Eliminar un certificado
   const deleteCertificate = async (domain: string) => {
     setConfirmDeleteCertificate(null);
     setLoading(true);
@@ -268,10 +236,8 @@ function App() {
 
       if (!response.ok) throw new Error('Failed to delete certificate');
 
-      // Actualizar datos
       await fetchData();
 
-      // Mostrar notificación
       showNotification(`Certificate for ${domain} deleted successfully`, 'success');
     } catch (error: any) {
       showNotification(`Error deleting certificate: ${error?.message}`, 'error');
@@ -280,13 +246,11 @@ function App() {
     }
   };
 
-  // Mostrar notificación
   const showNotification = (message: string, type: 'success' | 'error') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  // Refrescar certificado
   const refreshCertificate = async (domain: string) => {
     setLoading(true);
 
@@ -301,10 +265,8 @@ function App() {
 
       if (!response.ok) throw new Error('Failed to refresh certificate');
 
-      // Actualizar datos
       await fetchData();
 
-      // Mostrar notificación
       showNotification(`Certificate for ${domain} refreshed successfully`, 'success');
     } catch (error: any) {
       showNotification(`Error refreshing certificate: ${error?.message} `, 'error');
@@ -463,7 +425,6 @@ function App() {
                         </td>
                         <td className="actions-cell">
                           {domain.isCreatedByUs ? (
-                            // Acciones para dominios gestionados
                             <>
                               <button
                                 onClick={() => toggleDomainState(domain.domain, !domain.isDisabled)}
@@ -491,7 +452,6 @@ function App() {
                               </button>
                             </>
                           ) : (
-                            // Acción para adoptar dominios no gestionados
                             <button
                               onClick={() => adoptDomain(domain.domain, domain.ip)}
                               className="button primary adopt-button"

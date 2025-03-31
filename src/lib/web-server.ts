@@ -33,23 +33,23 @@ export class WebServer {
   }
 
   /**
-   * Configura middleware para Express
+   * Configure middleware for Express
    */
   private setupMiddleware(): void {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
-    // Servir archivos estáticos
+    // Serve static files
     const staticDir = path.join(__dirname, '..', '..', 'public');
     this.app.use(express.static(staticDir));
   }
 
   /**
-   * Configura rutas de la API
+   * Configure routes for the API
    */
   private setupRoutes(): void {
-    // API para obtener todos los hosts locales
-    this.app.get('/api/hosts', async (req, res) => {
+    // API to get all local hosts
+    this.app.get('/api/hosts', async (_, res) => {
       try {
         const hosts = await this.hostsManager.readLocalHosts();
         res.json({ success: true, hosts });
@@ -59,7 +59,7 @@ export class WebServer {
       }
     });
 
-    // API para agregar un nuevo host
+    // API to add a new host
     this.app.post('/api/hosts', async (req, res) => {
       try {
         const { domain, ip = '127.0.0.1' } = req.body;
@@ -82,7 +82,7 @@ export class WebServer {
       }
     });
 
-    // API para adoptar un host existente
+    // API to adopt an existing host
     this.app.post('/api/hosts/:domain/adopt', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -101,7 +101,7 @@ export class WebServer {
       }
     });
 
-    // API para importar todos los hosts locales
+    // API to import all local hosts
     this.app.post('/api/hosts/import-all', async (req, res) => {
       try {
         const result = await this.hostsManager.importAllLocalHosts();
@@ -120,7 +120,7 @@ export class WebServer {
       }
     });
 
-    // API para eliminar un host
+    // API to remove a host
     this.app.delete('/api/hosts/:domain', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -128,13 +128,13 @@ export class WebServer {
 
         const hostSuccess = await this.hostsManager.removeHost(domain, ip as string);
 
-        // También eliminar el certificado asociado
+        // Also remove the associated certificate
         let certSuccess = false;
         try {
           certSuccess = await this.certManager.deleteCertificate(domain);
         } catch (certError) {
           console.error(`Error removing certificate for ${domain}:`, certError);
-          // No fallamos la operación principal si falla la eliminación del certificado
+          // Don't fail the main operation if deleting the certificate fails
         }
 
         if (hostSuccess) {
@@ -151,7 +151,7 @@ export class WebServer {
       }
     });
 
-    // API para habilitar/deshabilitar un host
+    // API to toggle a host's state
     this.app.patch('/api/hosts/:domain/toggle', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -176,7 +176,7 @@ export class WebServer {
       }
     });
 
-    // API para obtener todos los certificados
+    // API to get all certificates
     this.app.get('/api/certificates', async (req, res) => {
       try {
         const certificates = await this.certManager.listCertificates();
@@ -187,7 +187,7 @@ export class WebServer {
       }
     });
 
-    // API para verificar un certificado
+    // API to verify a certificate
     this.app.get('/api/certificates/:domain', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -205,7 +205,7 @@ export class WebServer {
       }
     });
 
-    // API para crear un certificado
+    // API to create a certificate
     this.app.post('/api/certificates', async (req, res) => {
       try {
         const { domain } = req.body;
@@ -224,7 +224,7 @@ export class WebServer {
       }
     });
 
-    // API para eliminar un certificado
+    // API to delete a certificate
     this.app.delete('/api/certificates/:domain', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -242,17 +242,13 @@ export class WebServer {
       }
     });
 
-    // API para verificar el estado de un dominio
+    // API to check the status of a domain
     this.app.get('/api/status/:domain', async (req, res) => {
       try {
         const { domain } = req.params;
-
-        // Verificar si existe en hosts
         const hosts = await this.hostsManager.readLocalHosts();
         const hostEntry = hosts.find(host => host.domain === domain);
         const hostExists = !!hostEntry;
-
-        // Verificar si tiene certificado válido
         const certInfo = await this.certManager.verifyCertificate(domain);
         const certValid = certInfo?.isValid || false;
 
@@ -271,22 +267,20 @@ export class WebServer {
       }
     });
 
-    // Ruta para servir la interfaz de usuario
+    // Route to serve the user interface
     this.app.get('*', (_, res) => {
       res.sendFile(path.join(__dirname, '..', '..', 'public', 'index.html'));
     });
   }
 
   /**
-   * Inicia el servidor web
+   * Start the web server
    */
   public async start(): Promise<void> {
-    // Iniciar servidor HTTP
     this.server = this.app.listen(this.config.port, () => {
       console.log(`Server listening on http://localhost:${this.config.port}`);
     });
 
-    // Abrir navegador
     try {
       await open(`http://localhost:${this.config.port}`);
     } catch (error) {
@@ -295,11 +289,10 @@ export class WebServer {
   }
 
   /**
-   * Detiene el servidor web
+   * Stop the web server
    */
   public async stop(): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Detener servidor HTTP
       if (this.server) {
         this.server.close(err => {
           if (err) {
