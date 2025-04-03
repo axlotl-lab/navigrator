@@ -27,17 +27,34 @@ interface DomainStatus {
   isDisabled: boolean;
 }
 
+interface Proxy {
+  domain: string;
+  target: string;
+  port: number;
+  isRunning: boolean;
+}
+
 function App() {
   const [domains, setDomains] = useState<Host[]>([]);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [proxies, setProxies] = useState<Proxy[]>([]);
   const [statuses, setStatuses] = useState<{ [key: string]: DomainStatus }>({});
   const [newDomain, setNewDomain] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
-  const [activeTab, setActiveTab] = useState<'domains' | 'certificates'>('domains');
+  const [activeTab, setActiveTab] = useState<'domains' | 'certificates' | 'proxies'>('domains');
   const [confirmImport, setConfirmImport] = useState(false);
   const [confirmDeleteCertificate, setConfirmDeleteCertificate] = useState<string | null>(null);
+  const [confirmDeleteProxy, setConfirmDeleteProxy] = useState<string | null>(null);
+
+  const [newProxy, setNewProxy] = useState({
+    domain: '',
+    target: '',
+    port: 443
+  });
+
+  const [editProxy, setEditProxy] = useState<Proxy | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -50,7 +67,8 @@ function App() {
     try {
       await Promise.all([
         fetchHosts(),
-        fetchCertificates()
+        fetchCertificates(),
+        fetchProxies()
       ]);
 
       setLoading(false);
@@ -76,6 +94,14 @@ function App() {
 
     const data = await response.json();
     setCertificates(data.certificates);
+  };
+
+  const fetchProxies = async () => {
+    const response = await fetch('/api/proxies');
+    if (!response.ok) throw new Error('Failed to fetch proxies');
+
+    const data = await response.json();
+    setProxies(data.proxies);
   };
 
   const fetchDomainStatus = async (domain: string) => {
@@ -246,6 +272,121 @@ function App() {
     }
   };
 
+  const addProxy = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newProxy.domain || !newProxy.target) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/proxies', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newProxy)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add proxy');
+      }
+
+      await fetchProxies();
+
+      showNotification(`Proxy for ${newProxy.domain} added successfully`, 'success');
+
+      setNewProxy({
+        domain: '',
+        target: '',
+        port: 443
+      });
+    } catch (error: any) {
+      showNotification(`Error adding proxy: ${error?.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProxy = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editProxy) return;
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/proxies/${editProxy.domain}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          target: editProxy.target,
+          port: editProxy.port
+        })
+      });
+
+      if (!response.ok) throw new Error('Failed to update proxy');
+
+      await fetchProxies();
+
+      showNotification(`Proxy for ${editProxy.domain} updated successfully`, 'success');
+      setEditProxy(null);
+    } catch (error: any) {
+      showNotification(`Error updating proxy: ${error?.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteProxy = async (domain: string) => {
+    setConfirmDeleteProxy(null);
+    setLoading(true);
+
+    try {
+      const response = await fetch(`/api/proxies/${domain}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Failed to delete proxy');
+
+      await fetchProxies();
+
+      showNotification(`Proxy for ${domain} deleted successfully`, 'success');
+    } catch (error: any) {
+      showNotification(`Error deleting proxy: ${error?.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleProxy = async (domain: string, shouldStart: boolean) => {
+    setLoading(true);
+
+    try {
+      const endpoint = shouldStart ? 'start' : 'stop';
+      const response = await fetch(`/api/proxies/${domain}/${endpoint}`, {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to ${endpoint} proxy`);
+      }
+
+      await fetchProxies();
+
+      const action = shouldStart ? 'started' : 'stopped';
+      showNotification(`Proxy for ${domain} ${action} successfully`, 'success');
+    } catch (error: any) {
+      showNotification(`Error toggling proxy: ${error?.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const showNotification = (message: string, type: 'success' | 'error') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
@@ -344,6 +485,30 @@ function App() {
         </div>
       )}
 
+      {confirmDeleteProxy && (
+        <div className="confirmation-dialog">
+          <div className="confirmation-content">
+            <h3>Delete Proxy</h3>
+            <p>Are you sure you want to delete the proxy for {confirmDeleteProxy}?</p>
+            <p className="warning-text">If the proxy is running, it will be stopped.</p>
+            <div className="confirmation-actions">
+              <button
+                className="button secondary"
+                onClick={() => setConfirmDeleteProxy(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="button danger"
+                onClick={() => deleteProxy(confirmDeleteProxy)}
+              >
+                Delete Proxy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="tabs">
         <button
           className={activeTab === 'domains' ? 'active' : ''}
@@ -356,6 +521,12 @@ function App() {
           onClick={() => setActiveTab('certificates')}
         >
           Certificates
+        </button>
+        <button
+          className={activeTab === 'proxies' ? 'active' : ''}
+          onClick={() => setActiveTab('proxies')}
+        >
+          Proxies
         </button>
       </div>
 
@@ -523,6 +694,181 @@ function App() {
               </table>
             )}
           </div>
+        )}
+
+        {activeTab === 'proxies' && (
+          <>
+            {editProxy ? (
+              <form className="add-domain-form" onSubmit={updateProxy}>
+                <h2>Edit Proxy for {editProxy.domain}</h2>
+                <div className="form-row">
+                  <input
+                    type="text"
+                    placeholder="Target URL (e.g. localhost:3000)"
+                    value={editProxy.target}
+                    onChange={(e) => setEditProxy({ ...editProxy, target: e.target.value })}
+                    disabled={loading}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Port (default: 443)"
+                    value={editProxy.port}
+                    onChange={(e) => setEditProxy({ ...editProxy, port: parseInt(e.target.value) || 443 })}
+                    disabled={loading}
+                    className="port-input"
+                  />
+                  <button type="submit" disabled={loading || !editProxy.target}>
+                    Update Proxy
+                  </button>
+                  <button
+                    type="button"
+                    className="button secondary"
+                    onClick={() => setEditProxy(null)}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form className="add-domain-form" onSubmit={addProxy}>
+                <h2>Create HTTPS Proxy</h2>
+                <div className="form-row form-row-multi">
+                  <div className="input-group">
+                    <label htmlFor="proxy-domain">Domain</label>
+                    <select
+                      id="proxy-domain"
+                      value={newProxy.domain}
+                      onChange={(e) => setNewProxy({ ...newProxy, domain: e.target.value })}
+                      disabled={loading}
+                      required
+                    >
+                      <option value="">Select a domain</option>
+                      {domains
+                        .filter(domain =>
+                          !domain.isDisabled &&
+                          statuses[domain.domain]?.certificateValid &&
+                          !proxies.find(p => p.domain === domain.domain)
+                        )
+                        .map(domain => (
+                          <option key={domain.domain} value={domain.domain}>
+                            {domain.domain}
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="proxy-target">Target URL</label>
+                    <input
+                      id="proxy-target"
+                      type="text"
+                      placeholder="localhost:3000"
+                      value={newProxy.target}
+                      onChange={(e) => setNewProxy({ ...newProxy, target: e.target.value })}
+                      disabled={loading}
+                      required
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="proxy-port">HTTPS Port</label>
+                    <input
+                      id="proxy-port"
+                      type="number"
+                      placeholder="443"
+                      value={newProxy.port}
+                      onChange={(e) => setNewProxy({ ...newProxy, port: parseInt(e.target.value) || 443 })}
+                      disabled={loading}
+                      min="1"
+                      max="65535"
+                      className="port-input"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading || !newProxy.domain || !newProxy.target}
+                    className="button primary create-proxy-button"
+                  >
+                    Create Proxy
+                  </button>
+                </div>
+                <p className="help-text">
+                  Create a secure HTTPS proxy to your local development server. Traffic to your domain will be forwarded to the target URL.
+                </p>
+              </form>
+            )}
+
+            <div className="proxies-list">
+              <h2>Your Proxies</h2>
+
+              {proxies.length === 0 ? (
+                <p className="no-data">No proxies configured yet</p>
+              ) : (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Domain</th>
+                      <th>Target</th>
+                      <th>Port</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {proxies.map((proxy) => (
+                      <tr key={proxy.domain}>
+                        <td>{proxy.domain}</td>
+                        <td>{proxy.target}</td>
+                        <td>{proxy.port}</td>
+                        <td>
+                          <span className={`status ${proxy.isRunning ? 'valid' : 'warning'}`}>
+                            {proxy.isRunning ? 'Running' : 'Stopped'}
+                          </span>
+                        </td>
+                        <td className="actions-cell">
+                          {proxy.isRunning ? (
+                            <button
+                              onClick={() => toggleProxy(proxy.domain, false)}
+                              className="button warning"
+                              disabled={loading}
+                              title="Stop proxy"
+                            >
+                              Stop
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => toggleProxy(proxy.domain, true)}
+                              className="button success"
+                              disabled={loading}
+                              title="Start proxy"
+                            >
+                              Start
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setEditProxy(proxy)}
+                            className="button secondary"
+                            disabled={loading || proxy.isRunning}
+                            title={proxy.isRunning ? "Stop proxy before editing" : "Edit proxy configuration"}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteProxy(proxy.domain)}
+                            className="button danger"
+                            disabled={loading}
+                            title="Delete proxy"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -4,6 +4,7 @@ import open from 'open';
 import * as path from 'path';
 import { CertificateManager } from './certificates';
 import { HostsManager } from './hosts';
+import { ProxyConfig, ProxyService } from './proxy-service';
 
 export interface WebServerConfig {
   port: number;
@@ -14,12 +15,14 @@ export class WebServer {
   private server: http.Server | null = null;
   private hostsManager: HostsManager;
   private certManager: CertificateManager;
+  private proxyService: ProxyService;
   private config: WebServerConfig;
 
   constructor(hostsManager: HostsManager, certManager: CertificateManager, config: WebServerConfig) {
     this.app = express();
     this.hostsManager = hostsManager;
     this.certManager = certManager;
+    this.proxyService = new ProxyService();
     this.config = {
       port: config.port || 10191,
     };
@@ -44,7 +47,7 @@ export class WebServer {
    * Configure routes for the API
    */
   private setupRoutes(): void {
-    // API to get all local hosts
+    // Original routes...
     this.app.get('/api/hosts', async (_, res) => {
       try {
         const hosts = await this.hostsManager.readLocalHosts();
@@ -55,7 +58,6 @@ export class WebServer {
       }
     });
 
-    // API to add a new host
     this.app.post('/api/hosts', async (req, res) => {
       try {
         const { domain, ip = '127.0.0.1' } = req.body;
@@ -78,7 +80,6 @@ export class WebServer {
       }
     });
 
-    // API to adopt an existing host
     this.app.post('/api/hosts/:domain/adopt', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -97,7 +98,6 @@ export class WebServer {
       }
     });
 
-    // API to import all local hosts
     this.app.post('/api/hosts/import-all', async (req, res) => {
       try {
         const result = await this.hostsManager.importAllLocalHosts();
@@ -116,7 +116,6 @@ export class WebServer {
       }
     });
 
-    // API to remove a host
     this.app.delete('/api/hosts/:domain', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -147,7 +146,6 @@ export class WebServer {
       }
     });
 
-    // API to toggle a host's state
     this.app.patch('/api/hosts/:domain/toggle', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -172,7 +170,6 @@ export class WebServer {
       }
     });
 
-    // API to get all certificates
     this.app.get('/api/certificates', async (req, res) => {
       try {
         const certificates = await this.certManager.listCertificates();
@@ -183,7 +180,6 @@ export class WebServer {
       }
     });
 
-    // API to verify a certificate
     this.app.get('/api/certificates/:domain', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -201,7 +197,6 @@ export class WebServer {
       }
     });
 
-    // API to create a certificate
     this.app.post('/api/certificates', async (req, res) => {
       try {
         const { domain } = req.body;
@@ -220,7 +215,6 @@ export class WebServer {
       }
     });
 
-    // API to delete a certificate
     this.app.delete('/api/certificates/:domain', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -238,7 +232,6 @@ export class WebServer {
       }
     });
 
-    // API to check the status of a domain
     this.app.get('/api/status/:domain', async (req, res) => {
       try {
         const { domain } = req.params;
@@ -260,6 +253,146 @@ export class WebServer {
       } catch (error) {
         console.error('Error checking domain status:', error);
         res.status(500).json({ success: false, error: 'Failed to check domain status' });
+      }
+    });
+
+    // New proxy-related routes
+    this.app.get('/api/proxies', (req, res) => {
+      try {
+        const proxies = this.proxyService.getProxies();
+        res.json({ success: true, proxies });
+      } catch (error) {
+        console.error('Error fetching proxies:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch proxies' });
+      }
+    });
+
+    this.app.post('/api/proxies', async (req, res) => {
+      try {
+        const { domain, target, port } = req.body;
+
+        if (!domain || !target) {
+          res.status(400).json({ success: false, error: 'Domain and target are required' });
+          return;
+        }
+
+        // Verify domain exists and has a valid certificate
+        const hosts = await this.hostsManager.readLocalHosts();
+        const hostEntry = hosts.find(host => host.domain === domain);
+
+        if (!hostEntry) {
+          res.status(404).json({ success: false, error: 'Domain not found in hosts file' });
+          return;
+        }
+
+        const certInfo = await this.certManager.verifyCertificate(domain);
+
+        if (!certInfo || !certInfo.isValid) {
+          res.status(400).json({ success: false, error: 'Domain does not have a valid certificate' });
+          return;
+        }
+
+        const proxyConfig: ProxyConfig = {
+          domain,
+          target,
+          isRunning: false,
+          port: port || 443
+        };
+
+        const config = this.proxyService.addProxy(proxyConfig);
+
+        res.json({
+          success: true,
+          message: `Proxy configuration for ${domain} added successfully`,
+          proxy: config
+        });
+      } catch (error) {
+        console.error('Error adding proxy:', error);
+        res.status(500).json({ success: false, error: 'Failed to add proxy' });
+      }
+    });
+
+    this.app.delete('/api/proxies/:domain', (req, res) => {
+      try {
+        const { domain } = req.params;
+        const success = this.proxyService.removeProxy(domain);
+
+        if (success) {
+          res.json({ success: true, message: `Proxy for ${domain} removed successfully` });
+        } else {
+          res.status(404).json({ success: false, error: 'Proxy not found' });
+        }
+      } catch (error) {
+        console.error('Error removing proxy:', error);
+        res.status(500).json({ success: false, error: 'Failed to remove proxy' });
+      }
+    });
+
+    this.app.post('/api/proxies/:domain/start', async (req, res) => {
+      try {
+        const { domain } = req.params;
+
+        // Get certificate paths
+        const certInfo = await this.certManager.verifyCertificate(domain);
+
+        if (!certInfo || !certInfo.isValid || !certInfo.certFilePath || !certInfo.keyFilePath) {
+          res.status(400).json({ success: false, error: 'Domain does not have a valid certificate' });
+          return;
+        }
+
+        const success = this.proxyService.startProxy(
+          domain,
+          certInfo.certFilePath,
+          certInfo.keyFilePath
+        );
+
+        if (success) {
+          res.json({ success: true, message: `Proxy for ${domain} started successfully` });
+        } else {
+          res.status(500).json({ success: false, error: 'Failed to start proxy' });
+        }
+      } catch (error) {
+        console.error('Error starting proxy:', error);
+        res.status(500).json({ success: false, error: 'Failed to start proxy' });
+      }
+    });
+
+    this.app.post('/api/proxies/:domain/stop', (req, res) => {
+      try {
+        const { domain } = req.params;
+        const success = this.proxyService.stopProxy(domain);
+
+        if (success) {
+          res.json({ success: true, message: `Proxy for ${domain} stopped successfully` });
+        } else {
+          res.status(404).json({ success: false, error: 'Proxy not found or not running' });
+        }
+      } catch (error) {
+        console.error('Error stopping proxy:', error);
+        res.status(500).json({ success: false, error: 'Failed to stop proxy' });
+      }
+    });
+
+    this.app.patch('/api/proxies/:domain', (req, res) => {
+      try {
+        const { domain } = req.params;
+        const { target, port } = req.body;
+
+        if (!target && !port) {
+          res.status(400).json({ success: false, error: 'No update parameters provided' });
+          return;
+        }
+
+        const success = this.proxyService.updateProxy(domain, { target, port });
+
+        if (success) {
+          res.json({ success: true, message: `Proxy for ${domain} updated successfully` });
+        } else {
+          res.status(404).json({ success: false, error: 'Proxy not found' });
+        }
+      } catch (error) {
+        console.error('Error updating proxy:', error);
+        res.status(500).json({ success: false, error: 'Failed to update proxy' });
       }
     });
 
@@ -290,6 +423,9 @@ export class WebServer {
   public async stop(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (this.server) {
+        // Stop all proxies first
+        this.proxyService.stopAllProxies();
+
         this.server.close(err => {
           if (err) {
             console.error('Error stopping HTTP server:', err);
