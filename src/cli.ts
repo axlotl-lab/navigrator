@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 
 import chalk from 'chalk';
+import { exec } from 'child_process';
 import { Command } from 'commander';
 import figlet from 'figlet';
 import os from 'os';
 import path from 'path';
+import { promisify } from 'util';
 import packageJson from './../package.json';
 import { CertificateManager } from './lib/certificates';
 import { HostsManager } from './lib/hosts';
 import { WebServer } from './lib/web-server';
 
+const execAsync = promisify(exec);
 const program = new Command();
 
 program
@@ -23,6 +26,43 @@ function displayBanner() {
     )
   );
   console.log(chalk.cyan('  Local domain manager by Axlotl Lab\n'));
+}
+
+/**
+ * Check if OpenSSL is installed
+ */
+async function checkOpenSSL(): Promise<boolean> {
+  try {
+    await execAsync('openssl version');
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Display error message about missing OpenSSL
+ */
+function displayOpenSSLError() {
+  console.error(chalk.red('\n❌ Error: OpenSSL is not installed or not available in PATH'));
+  console.error(chalk.yellow('\nNavigrator requires OpenSSL to create and manage SSL certificates.'));
+
+  // OS-specific installation instructions
+  if (process.platform === 'win32') {
+    console.error(chalk.yellow('\nTo install OpenSSL on Windows:'));
+    console.error(chalk.white('  1. Download the installer from https://slproweb.com/products/Win32OpenSSL.html'));
+    console.error(chalk.white('  2. Run the installer and make sure to select "Copy OpenSSL DLLs to Windows system directory"'));
+    console.error(chalk.white('  3. Restart your terminal/command prompt'));
+  } else if (process.platform === 'darwin') {
+    console.error(chalk.yellow('\nTo install OpenSSL on macOS:'));
+    console.error(chalk.white('  Using Homebrew: brew install openssl'));
+  } else {
+    console.error(chalk.yellow('\nTo install OpenSSL on Linux:'));
+    console.error(chalk.white('  Debian/Ubuntu: sudo apt-get install openssl'));
+    console.error(chalk.white('  Fedora/RHEL: sudo dnf install openssl'));
+  }
+
+  console.error(chalk.yellow('\nPlease install OpenSSL and try again.\n'));
 }
 
 // Main command
@@ -43,6 +83,17 @@ program
     }
 
     try {
+      // Check for OpenSSL before proceeding
+      console.log(chalk.cyan('Checking OpenSSL installation...'));
+      const hasOpenSSL = await checkOpenSSL();
+
+      if (!hasOpenSSL) {
+        displayOpenSSLError();
+        process.exit(1);
+      }
+
+      console.log(chalk.green('✅ OpenSSL found'));
+
       const hostsManager = new HostsManager();
       const certsDir = path.join(os.homedir(), '.navigrator', 'certs');
       const certManager = new CertificateManager(certsDir);
@@ -112,6 +163,17 @@ program
     displayBanner();
 
     try {
+      // Check for OpenSSL before proceeding
+      console.log(chalk.cyan('Checking OpenSSL installation...'));
+      const hasOpenSSL = await checkOpenSSL();
+
+      if (!hasOpenSSL) {
+        displayOpenSSLError();
+        process.exit(1);
+      }
+
+      console.log(chalk.green('✅ OpenSSL found'));
+
       const hostsManager = new HostsManager();
       const certsDir = path.join(os.homedir(), '.navigrator', 'certs');
       const certManager = new CertificateManager(certsDir);
