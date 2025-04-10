@@ -1,6 +1,5 @@
 import { exec } from 'child_process';
 import * as fs from 'fs/promises';
-import * as forge from 'node-forge';
 import * as os from 'os';
 import * as path from 'path';
 import { CertificateManager } from './certificates';
@@ -10,161 +9,164 @@ jest.mock('fs/promises', () => ({
   readFile: jest.fn(),
   writeFile: jest.fn().mockResolvedValue(undefined),
   readdir: jest.fn(),
-  access: jest.fn()
+  access: jest.fn(),
+  unlink: jest.fn().mockResolvedValue(undefined)
 }));
 
 jest.mock('child_process', () => ({
-  execSync: jest.fn(),
-  exec: jest.fn((_, callback) => {
-    if (callback) callback(null, { stdout: '', stderr: '' });
-    return { stdout: '', stderr: '' };
-  })
+  exec: jest.fn()
 }));
 
-jest.mock('node-forge', () => {
-  const actualForge = jest.requireActual('node-forge');
-  return {
-    ...actualForge,
-    pki: {
-      ...actualForge.pki,
-      createCertificate: jest.fn().mockReturnValue({
-        publicKey: {},
-        setSubject: jest.fn(),
-        setIssuer: jest.fn(),
-        setExtensions: jest.fn(),
-        sign: jest.fn(),
-        serialNumber: '',
-        validity: {
-          notBefore: new Date(),
-          notAfter: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-        },
-        subject: {
-          getField: jest.fn().mockReturnValue({ value: 'test.local' })
-        },
-        issuer: {
-          getField: jest.fn().mockReturnValue({ value: 'Axlotl Lab Navigrator' })
-        },
-        extensions: []
-      }),
-      certificateFromPem: jest.fn().mockReturnValue({
-        validity: {
-          notBefore: new Date(),
-          notAfter: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-        },
-        subject: {
-          getField: jest.fn().mockReturnValue({ value: 'test.local' })
-        },
-        issuer: {
-          getField: jest.fn().mockReturnValue({ value: 'Axlotl Lab Navigrator' })
-        },
-        extensions: []
-      }),
-      certificateToPem: jest.fn().mockReturnValue('-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAJC1HiIAZAiIMA==\n-----END CERTIFICATE-----\n'),
-      privateKeyToPem: jest.fn().mockReturnValue('-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDx+BNL8SLR==\n-----END PRIVATE KEY-----\n'),
-      rsa: {
-        generateKeyPair: jest.fn().mockReturnValue({
-          publicKey: {},
-          privateKey: {}
-        })
-      }
-    },
-    md: {
-      sha256: {
-        create: jest.fn().mockReturnValue({})
-      }
-    },
-    random: {
-      getBytesSync: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4, 5]))
-    },
-    util: {
-      bytesToHex: jest.fn().mockReturnValue('0102030405')
+// Helper to mock the exec callback pattern
+const mockExecImplementation = (stdout = '') => {
+  (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
+    if (callback) {
+      callback(null, { stdout, stderr: '' });
     }
-  };
-});
+    return {
+      stdout,
+      stderr: ''
+    };
+  });
+};
 
 describe('CertificateManager', () => {
   let certManager: CertificateManager;
   const testDir = path.join(os.tmpdir(), 'test-certs');
+  const testCADir = path.join(testDir, 'ca');
 
   beforeEach(() => {
     jest.clearAllMocks();
     certManager = new CertificateManager(testDir);
+    mockExecImplementation('OpenSSL 1.1.1f');
   });
 
   describe('initialize', () => {
-    it('should create certificates directory', async () => {
+    it('should create certificates and CA directories', async () => {
       await certManager.initialize();
 
       expect(fs.mkdir).toHaveBeenCalledWith(testDir, { recursive: true });
+      expect(fs.mkdir).toHaveBeenCalledWith(testCADir, { recursive: true });
     });
 
-    it('should initialize mkcert if available', async () => {
-      jest.spyOn(certManager as any, 'checkMkcertInstalled').mockReturnValue(true);
+    it('should create local CA if it does not exist', async () => {
+      (fs.access as jest.Mock).mockRejectedValue(new Error('File not found'));
 
       await certManager.initialize();
 
-      expect(exec).toHaveBeenCalledWith('mkcert -install', expect.any(Function));
+      // Check that CA creation commands were executed
+      expect(exec).toHaveBeenCalledWith(
+        expect.stringContaining('openssl genrsa -out'),
+        expect.any(Function)
+      );
+      expect(exec).toHaveBeenCalledWith(
+        expect.stringContaining('openssl req -x509'),
+        expect.any(Function)
+      );
     });
 
-    it('should handle errors during initialization', async () => {
-      (fs.mkdir as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+    it('should skip CA creation if it already exists', async () => {
+      (fs.access as jest.Mock).mockResolvedValue(undefined);
 
-      await expect(certManager.initialize()).rejects.toThrow('Failed to initialize certificate manager');
+      await certManager.initialize();
+
+      // Verify exec was only called once for OpenSSL version check
+      expect(exec).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error if OpenSSL is not installed', async () => {
+      (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
+        if (callback) {
+          callback(new Error('Command not found'), { stdout: '', stderr: 'Command not found' });
+        }
+        throw new Error('Command not found');
+      });
+
+      await expect(certManager.initialize()).rejects.toThrow('OpenSSL is not installed');
     });
   });
 
   describe('createCertificate', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+      (certManager as any).hasOpenSSL = true;
       (certManager as any).certsDir = testDir;
+      (certManager as any).caDir = testCADir;
+
+      // Mock successful certificate parsing
+      jest.spyOn(certManager as any, 'parseCertificate').mockResolvedValue({
+        domain: 'test.local',
+        validFrom: new Date(),
+        validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        issuer: 'Navigrator Local CA',
+        isValid: true,
+        certFilePath: path.join(testDir, 'test.local.crt'),
+        keyFilePath: path.join(testDir, 'test.local.key')
+      });
     });
 
-    it('should use mkcert if available', async () => {
-      jest.spyOn(certManager as any, 'checkMkcertInstalled').mockReturnValue(true);
-      (certManager as any).hasMkcert = true;
+    it('should create certificate files with OpenSSL', async () => {
+      const result = await certManager.createCertificate('test.local');
 
-      const createWithMkcertSpy = jest.spyOn(certManager as any, 'createCertificateWithMkcert')
-        .mockResolvedValue({
-          domain: 'test.local',
-          validFrom: new Date(),
-          validTo: new Date(),
-          issuer: 'mkcert',
-          isValid: true,
-          certFilePath: path.join(testDir, 'test.local.crt'),
-          keyFilePath: path.join(testDir, 'test.local.key')
-        });
+      // Check that OpenSSL commands were executed
+      expect(fs.writeFile).toHaveBeenCalledWith(
+        expect.stringContaining('test.local.cnf'),
+        expect.stringContaining('[req]')
+      );
+      expect(exec).toHaveBeenCalledWith(
+        expect.stringContaining('openssl genrsa'),
+        expect.any(Function)
+      );
+      expect(exec).toHaveBeenCalledWith(
+        expect.stringContaining('openssl req -new'),
+        expect.any(Function)
+      );
+      expect(exec).toHaveBeenCalledWith(
+        expect.stringContaining('openssl x509 -req'),
+        expect.any(Function)
+      );
 
-      await certManager.createCertificate('test.local');
+      // Check that temporary files were cleaned up
+      expect(fs.unlink).toHaveBeenCalledWith(expect.stringContaining('test.local.csr'));
+      expect(fs.unlink).toHaveBeenCalledWith(expect.stringContaining('test.local.cnf'));
 
-      expect(createWithMkcertSpy).toHaveBeenCalledWith('test.local');
+      // Check that certificate was verified
+      expect(certManager['parseCertificate']).toHaveBeenCalledWith('test.local');
+
+      // Check return value
+      expect(result).toEqual(expect.objectContaining({
+        domain: 'test.local',
+        isValid: true
+      }));
     });
 
-    it('should use node-forge if mkcert is not available', async () => {
-      jest.spyOn(certManager as any, 'checkMkcertInstalled').mockReturnValue(false);
-      (certManager as any).hasMkcert = false;
+    it('should throw error if OpenSSL is not available', async () => {
+      (certManager as any).hasOpenSSL = false;
 
-      const createWithForgeSpy = jest.spyOn(certManager as any, 'createCertificateWithForge')
-        .mockResolvedValue({
-          domain: 'test.local',
-          validFrom: new Date(),
-          validTo: new Date(),
-          issuer: 'Axlotl Lab Navigrator',
-          isValid: true,
-          certFilePath: path.join(testDir, 'test.local.crt'),
-          keyFilePath: path.join(testDir, 'test.local.key')
-        });
+      await expect(certManager.createCertificate('test.local')).rejects.toThrow('OpenSSL is not available');
+    });
 
-      await certManager.createCertificate('test.local');
+    it('should handle errors during certificate creation', async () => {
+      (exec as unknown as jest.Mock).mockImplementation((cmd, callback) => {
+        if (cmd.includes('openssl genrsa')) {
+          if (callback) {
+            callback(new Error('Failed to generate key'), { stdout: '', stderr: 'Failed to generate key' });
+          }
+          throw new Error('Failed to generate key');
+        }
+        if (callback) {
+          callback(null, { stdout: '', stderr: '' });
+        }
+        return { stdout: '', stderr: '' };
+      });
 
-      expect(createWithForgeSpy).toHaveBeenCalledWith('test.local');
+      await expect(certManager.createCertificate('test.local')).rejects.toThrow('Failed to create certificate');
     });
   });
 
   describe('verifyCertificate', () => {
     beforeEach(() => {
       (certManager as any).certsDir = testDir;
-
       (fs.access as jest.Mock).mockResolvedValue(undefined);
-      (fs.readFile as jest.Mock).mockResolvedValue('-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAJC1HiIAZAiIMA==\n-----END CERTIFICATE-----\n');
     });
 
     it('should return null if certificate files do not exist', async () => {
@@ -174,23 +176,43 @@ describe('CertificateManager', () => {
 
       expect(result).toBeNull();
     });
+  });
 
-    it('should parse certificate and return info if it exists', async () => {
-      const result = await certManager.verifyCertificate('test.local');
-
-      expect(result).not.toBeNull();
-      expect(result?.domain).toBe('test.local');
-      expect(result?.isValid).toBe(true);
+  describe('deleteCertificate', () => {
+    beforeEach(() => {
+      jest.spyOn(certManager, 'verifyCertificate').mockResolvedValue({
+        domain: 'test.local',
+        validFrom: new Date(),
+        validTo: new Date(),
+        issuer: 'Navigrator Local CA',
+        isValid: true,
+        certFilePath: path.join(testDir, 'test.local.crt'),
+        keyFilePath: path.join(testDir, 'test.local.key')
+      });
     });
 
-    it('should handle errors when verifying certificate', async () => {
-      (forge.pki.certificateFromPem as jest.Mock).mockImplementation(() => {
-        throw new Error('Invalid certificate');
-      });
+    it('should delete certificate files', async () => {
+      const result = await certManager.deleteCertificate('test.local');
 
-      const result = await certManager.verifyCertificate('test.local');
+      expect(fs.unlink).toHaveBeenCalledWith(path.join(testDir, 'test.local.crt'));
+      expect(fs.unlink).toHaveBeenCalledWith(path.join(testDir, 'test.local.key'));
+      expect(result).toBe(true);
+    });
 
-      expect(result).toBeNull();
+    it('should return false if certificate does not exist', async () => {
+      jest.spyOn(certManager, 'verifyCertificate').mockResolvedValue(null);
+
+      const result = await certManager.deleteCertificate('test.local');
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle errors when deleting files', async () => {
+      (fs.unlink as jest.Mock).mockRejectedValue(new Error('Permission denied'));
+
+      const result = await certManager.deleteCertificate('test.local');
+
+      expect(result).toBe(false);
     });
   });
 
@@ -208,7 +230,7 @@ describe('CertificateManager', () => {
           domain,
           validFrom: new Date(),
           validTo: new Date(),
-          issuer: 'Axlotl Lab Navigrator',
+          issuer: 'Navigrator Local CA',
           isValid: true,
           certFilePath: path.join(testDir, `${domain}.crt`),
           keyFilePath: path.join(testDir, `${domain}.key`)
@@ -233,7 +255,7 @@ describe('CertificateManager', () => {
           domain,
           validFrom: new Date(),
           validTo: new Date(),
-          issuer: 'Axlotl Lab Navigrator',
+          issuer: 'Navigrator Local CA',
           isValid: true,
           certFilePath: path.join(testDir, `${domain}.crt`),
           keyFilePath: path.join(testDir, `${domain}.key`)
