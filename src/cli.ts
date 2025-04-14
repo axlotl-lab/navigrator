@@ -291,60 +291,6 @@ program
     }
   });
 
-// Command to install the CA certificate
-program
-  .command('install-ca')
-  .description('Install the root CA certificate in system/browser trust stores')
-  .action(async () => {
-    displayBanner();
-
-    try {
-      // First check for OpenSSL
-      console.log(chalk.cyan('Checking OpenSSL installation...'));
-      const hasOpenSSL = await checkOpenSSL();
-
-      if (!hasOpenSSL) {
-        displayOpenSSLError();
-        process.exit(1);
-      }
-
-      console.log(chalk.green('✅ OpenSSL found'));
-
-      const certsDir = path.join(os.homedir(), '.navigrator', 'certs');
-      const caInstaller = new CAInstaller(certsDir);
-
-      console.log(chalk.cyan('Installing the root CA certificate...'));
-      const result = await caInstaller.installCA();
-
-      if (result.success) {
-        console.log(chalk.green(`\n✅ ${result.message}`));
-
-        // Show browser-specific instructions
-        console.log(chalk.cyan('\nBrowser-specific notes:'));
-
-        if (process.platform === 'win32') {
-          console.log(chalk.white('• Chrome and Edge: Should recognize the certificate immediately.'));
-          console.log(chalk.white('• Firefox: May require manual import. Check the Firefox notification above.'));
-        } else if (process.platform === 'darwin') {
-          console.log(chalk.white('• Safari and Chrome: Should recognize the certificate after restart.'));
-          console.log(chalk.white('• Firefox: May require manual import. Check the Firefox notification above.'));
-        } else {
-          console.log(chalk.white('• Chrome: May require restarting the browser.'));
-          console.log(chalk.white('• Firefox: May require manual import. Check the Firefox notification above.'));
-        }
-
-        console.log(chalk.cyan('\nIf you experience any issues:'));
-        console.log(chalk.white('• Try restarting your browsers completely'));
-        console.log(chalk.white('• For Chrome, you can visit chrome://restart'));
-      } else {
-        console.log(chalk.yellow(`\n⚠️  ${result.message}`));
-      }
-    } catch (error: any) {
-      console.error(chalk.red(`\n❌ Error: ${error?.message}`));
-      process.exit(1);
-    }
-  });
-
 // Command to initialize and install the CA certificate
 program
   .command('init-ca')
@@ -391,7 +337,6 @@ program
     }
   });
 
-// Command to install the CA certificate (if it exists)
 // Command to install the CA certificate (if it exists)
 program
   .command('install-ca')
