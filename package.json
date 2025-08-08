@@ -1,6 +1,6 @@
 {
   "name": "@axlotl-lab/navigrator",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -19,7 +19,8 @@
     "start": "node dist/cli.js start",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "release": "node ./release.js"
   },
   "repository": {
     "type": "git",
