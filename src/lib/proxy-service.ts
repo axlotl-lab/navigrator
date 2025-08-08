@@ -371,12 +371,9 @@ export class ProxyService {
     // Clone headers to avoid modifying the original
     const headers: http.OutgoingHttpHeaders = { ...originalHeaders };
 
-    // Set the host header to the target
-    const targetHost = targetPort !== 80 && targetPort !== 443
-      ? `${targetHostname}:${targetPort}`
-      : targetHostname;
-
-    headers.host = targetHost;
+    // Preserve the original host header so the target application
+    // receives the correct domain name instead of the proxed one
+    headers.host = originalHost;
 
     // Set forwarding headers
     headers['x-forwarded-host'] = originalHost;
