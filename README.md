@@ -56,11 +56,88 @@ npm install -g @axlotl-lab/navigrator
 
 ## Usage
 
-### Starting Navigrator
+### Project-based Development
 
-Simply run the start command with administrator privileges:
+For development teams who want zero-friction setup, Navigrator now supports project-based configuration:
+
+#### 1. Add configuration to your project
+
+Create a `navigrator.config.json` in your project root:
+
+**Single domain:**
+```json
+{
+  "domain": "myapp.local",
+  "port": 3000
+}
+```
+
+**Multiple domains:**
+```json
+{
+  "domains": [
+    { "domain": "frontend.local", "port": 3000 },
+    { "domain": "api.local", "port": 8000 },
+    { "domain": "admin.local", "port": 9000 }
+  ]
+}
+```
+
+#### 2. Configure your npm scripts
+
+Update your `package.json`:
+
+```json
+{
+  "scripts": {
+    "dev": "navigrator dev next dev"
+  }
+}
+```
+
+#### 3. One-time setup per project
+
+Each developer runs this once per project (requires admin privileges):
 
 ```bash
+# On Windows (run Command Prompt or PowerShell as Administrator)
+navigrator config
+
+# On macOS/Linux
+sudo navigrator config
+```
+
+This will:
+- Generate and install the root CA certificate if needed
+- Add the domain to the hosts file
+- Create SSL certificates for the project
+
+#### 4. Daily development
+
+Now any developer can just run:
+
+```bash
+npm run dev
+```
+
+This will:
+- Start your development server (e.g., `next dev`)
+- Automatically proxy HTTPS traffic from your configured domains to their respective localhost ports
+- Handle SSL certificates transparently for all domains
+
+#### Team Benefits
+
+- **One-time setup**: Only `sudo navigrator config` once per project per developer
+- **Zero friction**: Daily development is just `npm run dev`
+- **Version controlled**: `navigrator.config.json` is committed to the repo
+- **Works everywhere**: New team members get the same setup automatically
+
+### Standalone Usage
+
+For individual domain management, you can still use Navigrator in standalone mode:
+
+```bash
+# Start the web interface with administrator privileges
 # On Windows (run Command Prompt or PowerShell as Administrator)
 navigrator start
 
@@ -68,13 +145,7 @@ navigrator start
 sudo navigrator start
 ```
 
-That's it! The first time you run Navigrator:
-1. It will check for and generate a root Certificate Authority (CA) if needed
-2. Install the CA certificate in your system's trust store
-3. Start the web interface on port 10191
-4. Open your browser to the interface
-
-Everything is managed automatically to provide a seamless experience.
+This provides the full web interface for managing domains and certificates manually.
 
 ### Options
 
@@ -85,7 +156,22 @@ navigrator start --port 4000
 
 ### Command Line Interface
 
-In addition to the web interface, you can use Navigrator from the command line:
+#### Project-based Commands
+
+```bash
+# Configure project from navigrator.config.json (requires admin privileges)
+navigrator config
+
+# Start development command with automatic proxy
+navigrator dev <command>
+
+# Examples:
+navigrator dev next dev
+navigrator dev npm run serve
+navigrator dev python -m http.server 8000
+```
+
+#### Individual Domain Management
 
 ```bash
 # Start the web interface (with automatic CA handling)

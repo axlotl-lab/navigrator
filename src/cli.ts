@@ -406,6 +406,218 @@ program
     }
   });
 
+// Command to configure project from navigrator.config.json
+program
+  .command('config')
+  .description('Configure project domains and certificates from navigrator.config.json')
+  .action(async () => {
+    displayBanner();
+
+    try {
+      // Check for OpenSSL
+      console.log(chalk.cyan('Checking OpenSSL installation...'));
+      const hasOpenSSL = await checkOpenSSL();
+
+      if (!hasOpenSSL) {
+        displayOpenSSLError();
+        process.exit(1);
+      }
+
+      console.log(chalk.green('✅ OpenSSL found'));
+
+      // Check if config file exists
+      const configPath = path.join(process.cwd(), 'navigrator.config.json');
+      if (!require('fs').existsSync(configPath)) {
+        console.error(chalk.red('\n❌ navigrator.config.json not found in current directory'));
+        console.log(chalk.yellow('Create a navigrator.config.json file with:'));
+        console.log(chalk.white(JSON.stringify({
+          domain: 'myapp.local',
+          port: 3000
+        }, null, 2)));
+        process.exit(1);
+      }
+
+      // Read config
+      const configData = require('fs').readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(configData);
+
+      // Support both old format and new format
+      let domains = [];
+      if (config.domain && config.port) {
+        // Old format: single domain
+        domains = [{ domain: config.domain, port: config.port }];
+      } else if (config.domains && Array.isArray(config.domains)) {
+        // New format: multiple domains
+        domains = config.domains;
+      } else {
+        console.error(chalk.red('\n❌ navigrator.config.json must have either:'));
+        console.log(chalk.white('  • "domain" and "port" fields, or'));
+        console.log(chalk.white('  • "domains" array with domain/port objects'));
+        console.log(chalk.yellow('\nExample:'));
+        console.log(chalk.white(JSON.stringify({
+          domains: [
+            { domain: 'myapp.local', port: 3000 },
+            { domain: 'api.local', port: 8000 }
+          ]
+        }, null, 2)));
+        process.exit(1);
+      }
+
+      if (domains.length === 0) {
+        console.error(chalk.red('\n❌ No domains found in configuration'));
+        process.exit(1);
+      }
+
+      // Validate each domain
+      for (const domainConfig of domains) {
+        if (!domainConfig.domain || !domainConfig.port) {
+          console.error(chalk.red(`\n❌ Each domain must have "domain" and "port" fields: ${JSON.stringify(domainConfig)}`));
+          process.exit(1);
+        }
+      }
+
+      // Initialize CA if needed
+      const certsDir = path.join(os.homedir(), '.navigrator', 'certs');
+      const caInstaller = new CAInstaller(certsDir);
+      const caGenerator = new CAGenerator(certsDir);
+      const caExists = await caInstaller.checkCAExists();
+
+      if (!caExists) {
+        console.log(chalk.cyan('Root CA certificate not found. Generating...'));
+        await caGenerator.initialize();
+        await caGenerator.generateCA();
+        console.log(chalk.green('✅ CA certificate generated'));
+
+        console.log(chalk.cyan('Installing the root CA certificate...'));
+        const result = await caInstaller.installCA();
+        if (result.success) {
+          console.log(chalk.green('✅ CA certificate installed'));
+        } else {
+          console.log(chalk.yellow(`⚠️  ${result.message}`));
+        }
+      }
+
+      // Initialize managers
+      const hostsManager = new HostsManager();
+      const certManager = new CertificateManager(certsDir);
+      await certManager.initialize();
+
+      // Process each domain
+      for (const domainConfig of domains) {
+        console.log(chalk.cyan(`Adding ${domainConfig.domain} to hosts file...`));
+        await hostsManager.addHost(domainConfig.domain, '127.0.0.1');
+
+        console.log(chalk.cyan(`Creating SSL certificate for ${domainConfig.domain}...`));
+        await certManager.createCertificate(domainConfig.domain);
+        
+        console.log(chalk.green(`✅ ${domainConfig.domain} configured`));
+      }
+
+      console.log(chalk.green(`\n✅ Project configured with ${domains.length} domain(s)`));
+
+    } catch (error: any) {
+      console.error(chalk.red(`\n❌ Error: ${error?.message}`));
+      process.exit(1);
+    }
+  });
+
+// Command to start a development command with proxy
+program
+  .command('dev <command...>')
+  .description('Start a development command with automatic HTTPS proxy')
+  .action(async (command) => {
+    try {
+      // Check if config file exists
+      const configPath = path.join(process.cwd(), 'navigrator.config.json');
+      if (!require('fs').existsSync(configPath)) {
+        console.error(chalk.red('\n❌ navigrator.config.json not found'));
+        console.log(chalk.yellow('Run "navigrator config" with elevated privileges first to configure this project'));
+        process.exit(1);
+      }
+
+      // Read config
+      const configData = require('fs').readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(configData);
+
+      // Support both old and new format
+      let domains = [];
+      if (config.domain && config.port) {
+        domains = [{ domain: config.domain, port: config.port }];
+      } else if (config.domains && Array.isArray(config.domains)) {
+        domains = config.domains;
+      } else {
+        console.error(chalk.red('\n❌ Invalid configuration format'));
+        process.exit(1);
+      }
+
+      // Start proxy service
+      const { ProxyService } = await import('./lib/proxy-service.js');
+      const proxyService = new ProxyService();
+      
+      const certsDir = path.join(os.homedir(), '.navigrator', 'certs');
+
+      // Configure proxy for each domain
+      for (const domainConfig of domains) {
+        // Add proxy configuration
+        const proxyConfig = {
+          domain: domainConfig.domain,
+          target: `http://localhost:${domainConfig.port}`,
+          isRunning: false
+        };
+        
+        proxyService.addProxy(proxyConfig);
+
+        // Get certificate paths
+        const certPath = path.join(certsDir, `${domainConfig.domain}.crt`);
+        const keyPath = path.join(certsDir, `${domainConfig.domain}.key`);
+
+        // Start proxy
+        console.log(chalk.cyan(`Starting proxy for ${domainConfig.domain}...`));
+        proxyService.startProxy(domainConfig.domain, certPath, keyPath);
+      }
+
+      // Execute the original command
+      const commandStr = command.join(' ');
+      console.log(chalk.cyan(`Executing: ${commandStr}`));
+      
+      const { spawn } = require('child_process');
+      const child = spawn(commandStr, [], { 
+        shell: true, 
+        stdio: 'inherit',
+        cwd: process.cwd()
+      });
+
+      // Handle process termination
+      const cleanup = () => {
+        console.log(chalk.cyan('\nStopping proxy...'));
+        proxyService.stopAllProxies();
+        child.kill();
+        process.exit(0);
+      };
+
+      process.on('SIGINT', cleanup);
+      process.on('SIGTERM', cleanup);
+
+      child.on('close', (code: number | null) => {
+        proxyService.stopAllProxies();
+        process.exit(code || 0);
+      });
+
+      if (domains.length === 1) {
+        console.log(chalk.green(`\n🚀 Development server running at https://${domains[0].domain}`));
+      } else {
+        console.log(chalk.green(`\n🚀 Development server running at:`));
+        domains.forEach((domain: any) => {
+          console.log(chalk.green(`   https://${domain.domain}`));
+        });
+      }
+
+    } catch (error: any) {
+      console.error(chalk.red(`\n❌ Error: ${error?.message}`));
+      process.exit(1);
+    }
+  });
+
 program.parse(process.argv);
 
 // If no argument is provided, show help
