@@ -1,0 +1,9 @@
+{
+  "name": "navigrator-test-project",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node server.js",
+    "dev:navigrator": "node ../dist/cli.js dev node server.js",
+    "navigrator:config": "node ../dist/cli.js config"
+  }
+}

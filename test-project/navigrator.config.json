@@ -1,0 +1,6 @@
+{
+  "domains": [
+    { "domain": "test-app.local", "port": 8080 },
+    { "domain": "test-api.local", "port": 8080 }
+  ]
+}
